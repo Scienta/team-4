@@ -9,10 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /** Submitting talks and reading them back, with the fields that live in other tables filled in. */
 @Service
@@ -39,26 +37,25 @@ public class TalkService {
     @Transactional
     public TalkDto submitTalk(TalkForm form) {
         if (Utils.isEmpty(form.title)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "title is required");
+            throw Refused.invalid("title is required");
         }
         Format format = Format.parse(form.format);
         if (format == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "format must be one of " + Arrays.toString(Format.values()));
+            throw Refused.invalid("format must be one of " + Arrays.toString(Format.values()));
         }
         if (Level.parse(form.level) == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown level");
+            throw Refused.invalid("unknown level");
         }
         if (form.speakerId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speakerId is required");
+            throw Refused.invalid("speakerId is required");
         }
         if (!speakerDao.exists(form.speakerId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speaker " + form.speakerId + " does not exist");
+            throw Refused.invalid("speaker " + form.speakerId + " does not exist");
         }
 
         Long id = insertIfBelowLimit(form, format.durationMinutes);
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "a speaker can submit at most " + MAX_TALKS_PER_SPEAKER + " talks");
+            throw Refused.notAllowed("a speaker can submit at most " + MAX_TALKS_PER_SPEAKER + " talks");
         }
         Speaker speaker = speakerDao.findById(form.speakerId);
         notifications.talkSubmitted(speaker.email(), form.title);
@@ -92,7 +89,7 @@ public class TalkService {
 
     public List<TalkDto> listTalks(String sort, Long speakerId) {
         if (sort != null && !sort.equals("rating")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort must be 'rating'");
+            throw Refused.invalid("sort must be 'rating'");
         }
         List<TalkDto> talks = speakerId == null ? talkDao.findAll() : talkDao.findBySpeaker(speakerId);
         decorate(talks);

@@ -4,10 +4,8 @@ import static no.scienta.cfp.NotFound.talkNotFound;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /** Adding and removing a talk's co-speakers. */
 @Service
@@ -35,12 +33,12 @@ public class CoSpeakerService {
         Long mainSpeaker = lockTalk(talkId);
         NotFound.requireSpeaker(speakerDao, speakerId);
         if (mainSpeaker == speakerId) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "the main speaker can't also be a co-speaker");
+            throw Refused.invalid("the main speaker can't also be a co-speaker");
         }
         List<Long> current = coSpeakerDao.findByTalk(talkId);
         if (!current.contains(speakerId)) {
             if (current.size() >= MAX_CO_SPEAKERS) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "a talk has at most " + MAX_CO_SPEAKERS + " co-speakers");
+                throw Refused.notAllowed("a talk has at most " + MAX_CO_SPEAKERS + " co-speakers");
             }
             coSpeakerDao.add(talkId, speakerId);
         }
@@ -53,7 +51,7 @@ public class CoSpeakerService {
         lockTalk(talkId);
         NotFound.requireSpeaker(speakerDao, speakerId);
         if (!coSpeakerDao.findByTalk(talkId).contains(speakerId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker is not a co-speaker of this talk");
+            throw Refused.notFound("speaker is not a co-speaker of this talk");
         }
         coSpeakerDao.remove(talkId, speakerId);
         return talks.getTalk(talkId);

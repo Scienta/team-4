@@ -10,10 +10,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /** Registering, looking up and updating speakers. */
 @Service
@@ -34,13 +32,13 @@ public class SpeakerService {
     /** The spec's rules for a speaker, shared by registration and the admin update. */
     private static void checkSpeaker(String name, String email, String bio) {
         if (Utils.isEmpty(name)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
+            throw Refused.invalid("name is required");
         }
         if (!Utils.isValidEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
+            throw Refused.invalid("invalid email");
         }
         if (Utils.characters(bio) > MAX_BIO) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bio is longer than " + MAX_BIO + " characters");
+            throw Refused.invalid("bio is longer than " + MAX_BIO + " characters");
         }
     }
 
@@ -48,13 +46,13 @@ public class SpeakerService {
     public Speaker registerSpeaker(SpeakerForm form) {
         checkSpeaker(form.getName(), form.getEmail(), form.getBio());
         if (speakerDao.emailTaken(form.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
+            throw Refused.notAllowed("email already registered");
         }
         long id;
         try {
             id = speakerDao.insert(form.getName(), form.getEmail(), form.getBio());
         } catch (DuplicateKeyException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
+            throw Refused.notAllowed("email already registered");
         }
         log.info("registered speaker " + id + " (" + form.getEmail() + ")");
         notifications.speakerRegistered(form.getEmail(), form.getName());
@@ -83,7 +81,7 @@ public class SpeakerService {
         Speaker existing = getSpeaker(id);
         checkSpeaker(name, email, bio);
         if (!email.equalsIgnoreCase(existing.email()) && speakerDao.emailTaken(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
+            throw Refused.notAllowed("email already registered");
         }
         speakerDao.update(id, name, email, bio);
         return getSpeaker(id);

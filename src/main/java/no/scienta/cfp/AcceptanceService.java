@@ -6,10 +6,8 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /** Accepting, rejecting, waitlisting and withdrawing talks (state machine in TalkStatus). */
 @Service
@@ -33,14 +31,10 @@ public class AcceptanceService {
      */
     @Transactional
     public TalkDto decide(long talkId, Map<String, Object> body) {
-        try {
-            TalkStatus.Decision decision = TalkStatus.Decision.parse(body == null ? null : body.get("status"));
-            TalkDto talk = lockTalkRow(talkId);
-            int reviewers = decision == TalkStatus.Decision.ACCEPTED ? ratingDao.reviewers(talkId) : 0;
-            return changeStatus(talk, TalkStatus.of(talk.status).decide(decision, reviewers));
-        } catch (TalkStatus.Refused e) {
-            throw refusal(e);
-        }
+        TalkStatus.Decision decision = TalkStatus.Decision.parse(body == null ? null : body.get("status"));
+        TalkDto talk = lockTalkRow(talkId);
+        int reviewers = decision == TalkStatus.Decision.ACCEPTED ? ratingDao.reviewers(talkId) : 0;
+        return changeStatus(talk, TalkStatus.of(talk.status).decide(decision, reviewers));
     }
 
     /** The talk's main speaker withdraws it. Out for good. */
@@ -48,29 +42,16 @@ public class AcceptanceService {
     public TalkDto withdraw(long talkId, Map<String, Object> body) {
         Object speakerId = body == null ? null : body.get("speakerId");
         if (!(speakerId instanceof Integer || speakerId instanceof Long)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speakerId must be a whole number");
+            throw Refused.invalid("speakerId must be a whole number");
         }
         TalkDto talk = lockTalkRow(talkId);
-        try {
-            return changeStatus(talk, TalkStatus.of(talk.status).withdraw(talk.speakerId, ((Number) speakerId).longValue()));
-        } catch (TalkStatus.Refused e) {
-            throw refusal(e);
-        }
+        return changeStatus(talk, TalkStatus.of(talk.status).withdraw(talk.speakerId, ((Number) speakerId).longValue()));
     }
 
     private TalkDto changeStatus(TalkDto talk, TalkStatus to) {
         talkDao.updateStatus(talk.id, to.name());
         log.info("talk " + talk.id + ": " + talk.status + " -> " + to.name());
         return talks.getTalk(talk.id);
-    }
-
-    private static ResponseStatusException refusal(TalkStatus.Refused e) {
-        HttpStatus status = switch (e.reason) {
-            case INVALID -> HttpStatus.BAD_REQUEST;
-            case NOT_THE_SPEAKER -> HttpStatus.FORBIDDEN;
-            case NOT_ALLOWED -> HttpStatus.CONFLICT;
-        };
-        return new ResponseStatusException(status, e.getMessage());
     }
 
     private TalkDto lockTalkRow(long talkId) {

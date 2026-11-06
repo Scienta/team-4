@@ -17,7 +17,6 @@ import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 /** The services' rules, on in-memory fakes of the DAOs (no database, no HTTP). */
 class ConferenceServiceTest {
@@ -285,13 +284,13 @@ class ConferenceServiceTest {
     // ---------------------------------------------------------------- helpers
 
     private static void assertStatus(HttpStatus status, Executable call) {
-        assertEquals(status, assertThrows(ResponseStatusException.class, call).getStatusCode());
+        assertEquals(status, ApiErrors.status(assertThrows(Refused.class, call).kind));
     }
 
-    private static void assertError(HttpStatus status, String reason, Executable call) {
-        ResponseStatusException e = assertThrows(ResponseStatusException.class, call);
-        assertEquals(status, e.getStatusCode());
-        assertEquals(reason, e.getReason());
+    private static void assertError(HttpStatus status, String message, Executable call) {
+        Refused e = assertThrows(Refused.class, call);
+        assertEquals(status, ApiErrors.status(e.kind));
+        assertEquals(message, e.getMessage());
     }
 
     private long register(String email) {
