@@ -9,16 +9,21 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
+import javax.sql.DataSource;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import com.zaxxer.hikari.HikariDataSource;
 
 /**
  * The deploy contract's GET /health: 200 with the baked-in version while the database answers, 503 within 5 s
@@ -44,7 +49,20 @@ class HealthTest {
     @Value("${local.server.port}")
     int port;
 
+    @Autowired
+    DataSource dataSource;
+
     private final HttpClient http = HttpClient.newHttpClient();
+
+    // /health shares the platform's 5-connection pool. With Hikari's default 30 s connection timeout, a burst that
+    // holds all 5 connections leaves starved requests (and the probe) waiting 30 s; the pool must give up sooner.
+    @Test
+    @Order(0)
+    void poolGivesUpOnAConnectionWellBeforeHikarisThirtySecondDefault() throws Exception {
+        HikariDataSource hikari = dataSource.unwrap(HikariDataSource.class);
+        assertEquals(5, hikari.getMaximumPoolSize());
+        assertEquals(10_000, hikari.getConnectionTimeout());
+    }
 
     @Test
     @Order(1)
