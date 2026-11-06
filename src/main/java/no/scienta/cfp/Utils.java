@@ -14,8 +14,6 @@ public class Utils {
 
     public static final String DB_DATE_TIME = "yyyy-MM-dd HH:mm:ss";
 
-    public static final int MAX_TALKS = 5;
-
     private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
     public static String today() {
@@ -108,7 +106,8 @@ public class Utils {
     }
 
     /**
-     * Rounds a rating average to one decimal.
+     * Cuts a rating average off at one decimal (CFP-61): 4.25 gives 4.2. Used by /admin/stats only; a talk's own
+     * average rounds halves up instead (see ConferenceService.calculateAverage).
      */
     public static double roundRating(double avg) {
         return Math.floor(avg * 10) / 10.0;
