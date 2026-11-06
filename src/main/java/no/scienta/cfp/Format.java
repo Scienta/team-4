@@ -12,7 +12,7 @@ enum Format {
     PRESENTATION(45),
     LIGHTNING_20(20),
     LIGHTNING_10(10);
-    // KEYNOTE(60): keynotes are invited, not submitted (2021)
+    // No KEYNOTE: keynotes are invited, not submitted (2021).
 
     final int durationMinutes;
 

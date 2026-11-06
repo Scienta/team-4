@@ -119,8 +119,4 @@ public class Utils {
         }
         return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
     }
-
-    // public static String slug(String title) {
-    //     return title.toLowerCase().replaceAll("[^a-z0-9]+", "-");
-    // }
 }

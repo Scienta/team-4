@@ -16,9 +16,6 @@ public class SpeakerForm {
     // at most Speaker.MAX_BIO characters, checked by Speaker.check: @Size counts an emoji as two
     private String bio;
 
-    // TODO twitter handle, see CFP-112
-    // private String twitter;
-
     public String getName() {
         return name;
     }
