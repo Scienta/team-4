@@ -123,9 +123,9 @@ class ConferenceServiceTest {
     void durationFollowsFormat(String format, int minutes) {
         TalkForm form = form(register("ada@example.com"));
         form.format = format;
-        TalkDto talk = talkService.submitTalk(form);
-        assertEquals(minutes, talk.durationMinutes);
-        assertEquals(minutes, talkService.getTalk(talk.id).durationMinutes);
+        TalkView talk = talkService.submitTalk(form);
+        assertEquals(minutes, talk.durationMinutes());
+        assertEquals(minutes, talkService.getTalk(talk.id()).durationMinutes());
     }
 
     @Test
@@ -147,16 +147,16 @@ class ConferenceServiceTest {
         for (int reviewer = 0; reviewer < s.length; reviewer++) {
             ratingService.rate(talk, reviewer + 1, score(Integer.parseInt(s[reviewer])));
         }
-        TalkDto t = talkService.getTalk(talk);
-        assertEquals(expected, t.averageRating);
-        assertEquals(s.length, t.ratingCount);
+        TalkView t = talkService.getTalk(talk);
+        assertEquals(expected, t.averageRating());
+        assertEquals(s.length, t.ratingCount());
     }
 
     @Test
     void unratedTalkHasNoAverage() {
-        TalkDto t = talkService.getTalk(newTalk());
-        assertNull(t.averageRating);
-        assertEquals(0, t.ratingCount);
+        TalkView t = talkService.getTalk(newTalk());
+        assertNull(t.averageRating());
+        assertEquals(0, t.ratingCount());
     }
 
     @Test
@@ -191,7 +191,7 @@ class ConferenceServiceTest {
         long t4 = newTalk(5);           // 5.0
         long t5 = newTalk(4);           // 4.0, 1 rating, higher id than t2
         long t6 = newTalk();            // unrated
-        List<Long> ids = talkService.listTalks("rating", null).stream().map(t -> t.id).collect(Collectors.toList());
+        List<Long> ids = talkService.listTalks("rating", null).stream().map(TalkView::id).collect(Collectors.toList());
         assertEquals(Arrays.asList(t4, t3, t2, t5, t1, t6), ids);
     }
 
@@ -209,7 +209,7 @@ class ConferenceServiceTest {
         assertEquals(talk, result.talkId());
         assertEquals(2L, result.reviewerId());
         assertEquals(4, result.score());
-        assertEquals(1, talkService.getTalk(talk).ratingCount);
+        assertEquals(1, talkService.getTalk(talk).ratingCount());
     }
 
     @Test
@@ -217,9 +217,9 @@ class ConferenceServiceTest {
         long talk = newTalk();
         ratingService.rate(talk, 2, score(1));
         ratingService.rate(talk, 2, score(5));
-        TalkDto t = talkService.getTalk(talk);
-        assertEquals(1, t.ratingCount);
-        assertEquals(5.0, t.averageRating);
+        TalkView t = talkService.getTalk(talk);
+        assertEquals(1, t.ratingCount());
+        assertEquals(5.0, t.averageRating());
     }
 
     @Test
@@ -242,7 +242,7 @@ class ConferenceServiceTest {
         for (Object score : Arrays.asList(4.0, 4.5, "4", null, true, 3_000_000_000L)) {
             assertStatus(HttpStatus.BAD_REQUEST, () -> ratingService.rate(talk, 2, score(score)));
         }
-        assertEquals(0, talkService.getTalk(talk).ratingCount);
+        assertEquals(0, talkService.getTalk(talk).ratingCount());
     }
 
     @Test
@@ -261,7 +261,7 @@ class ConferenceServiceTest {
     @Test
     void mainSpeakerCannotBeTheirOwnCoSpeaker() {
         long main = register("main@example.com");
-        long talk = talkService.submitTalk(form(main)).id;
+        long talk = talkService.submitTalk(form(main)).id();
         assertStatus(HttpStatus.BAD_REQUEST, () -> coSpeakerService.addCoSpeaker(talk, main));
     }
 
@@ -277,7 +277,7 @@ class ConferenceServiceTest {
         long talk = newTalk();
         long ada = register("ada@example.com");
         coSpeakerService.addCoSpeaker(talk, ada);
-        assertEquals(Arrays.asList(), coSpeakerService.removeCoSpeaker(talk, ada).coSpeakerIds);
+        assertEquals(Arrays.asList(), coSpeakerService.removeCoSpeaker(talk, ada).coSpeakerIds());
         assertStatus(HttpStatus.NOT_FOUND, () -> coSpeakerService.removeCoSpeaker(talk, ada));
     }
 
@@ -302,7 +302,7 @@ class ConferenceServiceTest {
     /** A talk by a fresh speaker, rated with the given scores by reviewers 1, 2, ... */
     private long newTalk(int... scores) {
         long speaker = register("speaker-" + (++speakers) + "@example.com");
-        long talk = talkService.submitTalk(form(speaker)).id;
+        long talk = talkService.submitTalk(form(speaker)).id();
         for (int i = 0; i < scores.length; i++) {
             ratingService.rate(talk, i + 1, score(scores[i]));
         }

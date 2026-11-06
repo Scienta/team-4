@@ -1,66 +1,59 @@
 package no.scienta.cfp;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Talks in the {@code talk} table. Rows become {@link Talk}s; the status column is a {@link TalkStatus} name. */
 @Repository
 public class TalkDao {
 
     private static final String COLUMNS = "id, title, format, duration, level, status, speaker_id, submitted_at";
 
-    private final JdbcTemplate jdbc;
+    private static final RowMapper<Talk> TALK = (rs, rowNum) -> new Talk(
+            rs.getLong("id"),
+            rs.getString("title"),
+            rs.getString("format"),
+            rs.getString("level"),
+            rs.getLong("speaker_id"),
+            rs.getInt("duration"),
+            TalkStatus.of(rs.getString("status")),
+            Instant.ofEpochMilli(rs.getLong("submitted_at")));
 
-    private final RowMapper<TalkDto> mapper = (rs, rowNum) -> {
-        TalkDto t = new TalkDto();
-        t.id = rs.getLong("id");
-        t.title = rs.getString("title");
-        t.format = rs.getString("format");
-        t.durationMinutes = rs.getInt("duration");
-        t.level = rs.getString("level");
-        t.status = rs.getString("status");
-        t.speakerId = rs.getLong("speaker_id");
-        long millis = rs.getLong("submitted_at");
-        t.submittedAt = new Date(millis);
-        t.submittedOn = Utils.toSqlDate(millis);
-        return t;
-    };
+    private final JdbcTemplate jdbc;
 
     public TalkDao(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
-    public TalkDto findById(long id) {
-        List<TalkDto> list = jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ?", mapper, id);
-        return list.isEmpty() ? null : list.get(0);
+    public Optional<Talk> findById(long id) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ?", TALK, id).stream().findFirst();
     }
 
-    public List<TalkDto> findBySpeaker(long speakerId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE speaker_id = ? ORDER BY id", mapper, speakerId);
+    /** Talks with this speaker as main speaker, oldest first. */
+    public List<Talk> findBySpeaker(long speakerId) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE speaker_id = ? ORDER BY id", TALK, speakerId);
     }
 
-    public List<TalkDto> findAll() {
-        return jdbc.query("SELECT " + COLUMNS + " FROM talk ORDER BY id", mapper);
+    public List<Talk> findAll() {
+        return jdbc.query("SELECT " + COLUMNS + " FROM talk ORDER BY id", TALK);
     }
 
-    /** Locks the talk row for the rest of the transaction and returns its main speaker, or null if no such talk. */
-    public Long lockMainSpeaker(long id) {
-        List<Long> list = jdbc.queryForList("SELECT speaker_id FROM talk WHERE id = ? FOR UPDATE", Long.class, id);
-        return list.isEmpty() ? null : list.get(0);
+    /**
+     * Locks the talk row for the rest of the transaction and returns the talk. Every change to a talk, its
+     * co-speakers or its workshop registrations takes this lock first.
+     */
+    public Optional<Talk> lock(long id) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ? FOR UPDATE", TALK, id).stream().findFirst();
     }
 
-    /** Locks the talk row for the rest of the transaction and returns it (without decorations), or null if no such talk. */
-    public TalkDto lock(long id) {
-        List<TalkDto> list = jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ? FOR UPDATE", mapper, id);
-        return list.isEmpty() ? null : list.get(0);
-    }
-
-    public void updateStatus(long id, String status) {
-        jdbc.update("UPDATE talk SET status = ? WHERE id = ?", status, id);
+    public void updateStatus(long id, TalkStatus status) {
+        jdbc.update("UPDATE talk SET status = ? WHERE id = ?", status.name(), id);
     }
 
     public boolean exists(long id) {
@@ -69,24 +62,18 @@ public class TalkDao {
     }
 
     /**
-     * Inserts the talk only if the speaker has fewer than {@code max} talks. Returns the new id, or null.
+     * Inserts the talk only if its speaker has fewer than {@code max} talks. Returns the new id, or empty.
      * The speaker row is locked first so two submissions for the same speaker can't both see room under the limit.
      */
     @Transactional
-    public Long insertIfBelow(int max, String title, String format, int duration, String level, long speakerId, long submittedAt) {
-        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", speakerId);
+    public Optional<Long> insertIfBelow(int max, Submission s, Instant submittedAt) {
+        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", s.speakerId());
         List<Long> ids = jdbc.queryForList(
                 "INSERT INTO talk (title, format, duration, level, status, speaker_id, submitted_at) "
                         + "SELECT ?, ?, ?, ?, 'SUBMITTED', ?, ? "
                         + "WHERE (SELECT COUNT(*) FROM talk WHERE speaker_id = ?) < ? RETURNING id",
-                Long.class, title, format, duration, level, speakerId, submittedAt, speakerId, max);
-        return ids.isEmpty() ? null : ids.get(0);
+                Long.class, s.title(), s.format().name(), s.format().durationMinutes, s.level().name(), s.speakerId(),
+                submittedAt.toEpochMilli(), s.speakerId(), max);
+        return ids.stream().findFirst();
     }
-
-    // old version, raced when the mobile app double-posted
-    // public long insert(String title, String format, int duration, String level, long speakerId) {
-    //     jdbc.update("INSERT INTO talk (title, format, duration, level, status, speaker_id) VALUES (?, ?, ?, ?, 'SUBMITTED', ?)",
-    //             title, format, duration, level, speakerId);
-    //     return jdbc.queryForObject("SELECT currval('talk_id_seq')", Long.class);
-    // }
 }

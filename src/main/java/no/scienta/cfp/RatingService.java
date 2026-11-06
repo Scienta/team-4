@@ -9,11 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RatingService {
 
-    private final TalkDao talkDao;
+    private final TalkService talks;
     private final RatingDao ratingDao;
 
-    public RatingService(TalkDao talkDao, RatingDao ratingDao) {
-        this.talkDao = talkDao;
+    public RatingService(TalkService talks, RatingDao ratingDao) {
+        this.talks = talks;
         this.ratingDao = ratingDao;
     }
 
@@ -22,17 +22,10 @@ public class RatingService {
         if (reviewerId < 1) {
             throw Refused.invalid("reviewerId must be positive");
         }
-        Object score = body.get("score");
-        if (!(score instanceof Integer)) {
-            throw Refused.invalid("score must be a whole number");
-        }
-        int s = (Integer) score;
-        if (s < 1 || s > 5) {
-            throw Refused.invalid("score must be 1-5");
-        }
-        NotFound.requireTalk(talkDao, talkId);
+        Score score = Score.parse(body.get("score"));
+        talks.requireExists(talkId);
         String now = Utils.now();
-        ratingDao.save(talkId, reviewerId, s, now);
-        return new Rating(talkId, reviewerId, s, Utils.usShort(Utils.parse(now)));
+        ratingDao.save(talkId, reviewerId, score, now);
+        return new Rating(talkId, reviewerId, score.value(), Utils.usShort(Utils.parse(now)));
     }
 }

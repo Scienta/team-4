@@ -1,7 +1,5 @@
 package no.scienta.cfp;
 
-import static no.scienta.cfp.NotFound.talkNotFound;
-
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -30,35 +28,27 @@ public class AcceptanceService {
      * applied one after the other and the second is checked against the first's result.
      */
     @Transactional
-    public TalkDto decide(long talkId, Map<String, Object> body) {
+    public TalkView decide(long talkId, Map<String, Object> body) {
         TalkStatus.Decision decision = TalkStatus.Decision.parse(body == null ? null : body.get("status"));
-        TalkDto talk = lockTalkRow(talkId);
+        Talk talk = talks.lock(talkId);
         int reviewers = decision == TalkStatus.Decision.ACCEPTED ? ratingDao.reviewers(talkId) : 0;
-        return changeStatus(talk, TalkStatus.of(talk.status).decide(decision, reviewers));
+        return changeStatus(talk, talk.status().decide(decision, reviewers));
     }
 
     /** The talk's main speaker withdraws it. Out for good. */
     @Transactional
-    public TalkDto withdraw(long talkId, Map<String, Object> body) {
+    public TalkView withdraw(long talkId, Map<String, Object> body) {
         Object speakerId = body == null ? null : body.get("speakerId");
         if (!(speakerId instanceof Integer || speakerId instanceof Long)) {
             throw Refused.invalid("speakerId must be a whole number");
         }
-        TalkDto talk = lockTalkRow(talkId);
-        return changeStatus(talk, TalkStatus.of(talk.status).withdraw(talk.speakerId, ((Number) speakerId).longValue()));
+        Talk talk = talks.lock(talkId);
+        return changeStatus(talk, talk.status().withdraw(talk.mainSpeakerId(), ((Number) speakerId).longValue()));
     }
 
-    private TalkDto changeStatus(TalkDto talk, TalkStatus to) {
-        talkDao.updateStatus(talk.id, to.name());
-        log.info("talk " + talk.id + ": " + talk.status + " -> " + to.name());
-        return talks.getTalk(talk.id);
-    }
-
-    private TalkDto lockTalkRow(long talkId) {
-        TalkDto talk = talkDao.lock(talkId);
-        if (talk == null) {
-            throw talkNotFound();
-        }
-        return talk;
+    private TalkView changeStatus(Talk talk, TalkStatus to) {
+        talkDao.updateStatus(talk.id(), to);
+        log.info("talk " + talk.id() + ": " + talk.status().name() + " -> " + to.name());
+        return talks.getTalk(talk.id());
     }
 }

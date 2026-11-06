@@ -34,11 +34,8 @@ public class WorkshopService {
         if (!Utils.isValidEmail(email)) {
             throw Refused.invalid("invalid email");
         }
-        TalkDto talk = talkDao.lock(talkId);
-        if (talk == null) {
-            throw notFound();
-        }
-        WorkshopRules.register(talk.format, TalkStatus.of(talk.status),
+        Talk talk = talkDao.lock(talkId).orElseThrow(WorkshopService::notFound);
+        WorkshopRules.register(talk.format(), talk.status(),
                 registrations.count(talkId), registrations.emailRegistered(talkId, email));
         try {
             Registration r = registrations.insert(talkId, name, email);

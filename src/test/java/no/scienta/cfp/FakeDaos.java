@@ -1,11 +1,12 @@
 package no.scienta.cfp;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.dao.DuplicateKeyException;
@@ -27,15 +28,15 @@ final class FakeDaos {
     }
 
     TalkService talkService() {
-        return new TalkService(speakers, talks, ratings, coSpeakers, new NotificationService());
+        return new TalkService(speakers, talks, ratings, coSpeakers, speakerService(), new NotificationService());
     }
 
     RatingService ratingService() {
-        return new RatingService(talks, ratings);
+        return new RatingService(talkService(), ratings);
     }
 
     CoSpeakerService coSpeakerService() {
-        return new CoSpeakerService(speakers, talks, coSpeakers, talkService());
+        return new CoSpeakerService(coSpeakers, speakerService(), talkService());
     }
 
     StatisticsService statisticsService() {
@@ -117,33 +118,37 @@ final class FakeDaos {
 
     static class FakeTalkDao extends TalkDao {
 
-        private final Map<Long, TalkDto> rows = new LinkedHashMap<>();
+        private final Map<Long, Talk> rows = new LinkedHashMap<>();
 
         FakeTalkDao() {
             super(null);
         }
 
         @Override
-        public TalkDto findById(long id) {
-            TalkDto t = rows.get(id);
-            return t == null ? null : copy(t);
+        public Optional<Talk> findById(long id) {
+            return Optional.ofNullable(rows.get(id));
         }
 
         @Override
-        public List<TalkDto> findBySpeaker(long speakerId) {
-            return rows.values().stream().filter(t -> t.speakerId == speakerId).map(FakeTalkDao::copy)
-                    .collect(Collectors.toList());
+        public List<Talk> findBySpeaker(long speakerId) {
+            return rows.values().stream().filter(t -> t.mainSpeakerId() == speakerId).collect(Collectors.toList());
         }
 
         @Override
-        public List<TalkDto> findAll() {
-            return rows.values().stream().map(FakeTalkDao::copy).collect(Collectors.toList());
+        public List<Talk> findAll() {
+            return new ArrayList<>(rows.values());
         }
 
         @Override
-        public Long lockMainSpeaker(long id) {
-            TalkDto t = rows.get(id);
-            return t == null ? null : t.speakerId;
+        public Optional<Talk> lock(long id) {
+            return findById(id);
+        }
+
+        @Override
+        public void updateStatus(long id, TalkStatus status) {
+            Talk t = rows.get(id);
+            rows.put(id, new Talk(t.id(), t.title(), t.format(), t.level(), t.mainSpeakerId(), t.durationMinutes(),
+                    status, t.submittedAt()));
         }
 
         @Override
@@ -152,37 +157,14 @@ final class FakeDaos {
         }
 
         @Override
-        public Long insertIfBelow(int max, String title, String format, int duration, String level, long speakerId,
-                                  long submittedAt) {
-            if (findBySpeaker(speakerId).size() >= max) {
-                return null;
+        public Optional<Long> insertIfBelow(int max, Submission s, Instant submittedAt) {
+            if (findBySpeaker(s.speakerId()).size() >= max) {
+                return Optional.empty();
             }
-            TalkDto t = new TalkDto();
-            t.id = (long) rows.size() + 1;
-            t.title = title;
-            t.format = format;
-            t.durationMinutes = duration;
-            t.level = level;
-            t.status = "SUBMITTED";
-            t.speakerId = speakerId;
-            t.submittedAt = new Date(submittedAt);
-            t.submittedOn = Utils.toSqlDate(submittedAt);
-            rows.put(t.id, t);
-            return t.id;
-        }
-
-        private static TalkDto copy(TalkDto s) {
-            TalkDto t = new TalkDto();
-            t.id = s.id;
-            t.title = s.title;
-            t.format = s.format;
-            t.durationMinutes = s.durationMinutes;
-            t.level = s.level;
-            t.status = s.status;
-            t.speakerId = s.speakerId;
-            t.submittedAt = s.submittedAt;
-            t.submittedOn = s.submittedOn;
-            return t;
+            long id = rows.size() + 1;
+            rows.put(id, new Talk(id, s.title(), s.format().name(), s.level().name(), s.speakerId(),
+                    s.format().durationMinutes, new TalkStatus.Submitted(), submittedAt));
+            return Optional.of(id);
         }
     }
 
@@ -196,17 +178,17 @@ final class FakeDaos {
         }
 
         @Override
-        public void save(long talkId, long reviewerId, int score, String ratedAt) {
-            scores.computeIfAbsent(talkId, k -> new LinkedHashMap<>()).put(reviewerId, score);
+        public void save(long talkId, long reviewerId, Score score, String ratedAt) {
+            scores.computeIfAbsent(talkId, k -> new LinkedHashMap<>()).put(reviewerId, score.value());
         }
 
         @Override
-        public Map<Long, Stats> stats(Collection<Long> talkIds) {
-            Map<Long, Stats> stats = new LinkedHashMap<>();
+        public Map<Long, RatingSummary> summaries(Collection<Long> talkIds) {
+            Map<Long, RatingSummary> stats = new LinkedHashMap<>();
             for (Long talkId : talkIds) {
                 Map<Long, Integer> forTalk = scores.get(talkId);
                 if (forTalk != null && !forTalk.isEmpty()) {
-                    stats.put(talkId, new Stats(forTalk.size(), forTalk.values().stream().mapToLong(Integer::longValue).sum()));
+                    stats.put(talkId, new RatingSummary(forTalk.size(), forTalk.values().stream().mapToLong(Integer::longValue).sum()));
                 }
             }
             return stats;
