@@ -64,19 +64,6 @@ public class Utils {
         return f.format(d);
     }
 
-    /**
-     * Makes a value safe for the semicolon CSV export.
-     */
-    public static String csv(String s) {
-        if (s == null) {
-            return "";
-        }
-        if (s.contains(";") || s.contains("\"")) {
-            return "\"" + s.replace("\"", "'") + "\"";
-        }
-        return s;
-    }
-
     // local@domain.tld: no whitespace, exactly one @, a dot in the domain, no empty labels.
     private static final java.util.regex.Pattern EMAIL =
             java.util.regex.Pattern.compile("[^\\s@]+@[^\\s@.]+(\\.[^\\s@.]+)+");
