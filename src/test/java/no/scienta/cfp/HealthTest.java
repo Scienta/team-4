@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Properties;
 
 import javax.sql.DataSource;
 
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.postgresql.Driver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -62,6 +64,17 @@ class HealthTest {
         HikariDataSource hikari = dataSource.unwrap(HikariDataSource.class);
         assertEquals(5, hikari.getMaximumPoolSize());
         assertEquals(10_000, hikari.getConnectionTimeout());
+    }
+
+    // Without a socket timeout a read on a half-open connection blocks forever (the query timeout's cancel goes
+    // over a new connection, which fails too), so the health probe never finishes and /health stays 503.
+    @Test
+    @Order(0)
+    void theDriverGetsASocketTimeout() throws Exception {
+        String url = dataSource.unwrap(HikariDataSource.class).getJdbcUrl();
+        Properties parsed = Driver.parseURL(url, null);
+        assertEquals("30", parsed.getProperty("socketTimeout"), url);
+        assertEquals("disable", parsed.getProperty("sslmode"), url);
     }
 
     @Test
