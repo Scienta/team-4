@@ -60,7 +60,7 @@ public class SpeakerService {
         return names;
     }
 
-    /** The admin UI fixing typos: same rules as registering. */
+    /** The admin UI fixing typos: same rules as registering, including the unique index catching a racing claim. */
     @Transactional
     public Speaker updateSpeaker(long id, String name, String email, String bio) {
         Speaker existing = getSpeaker(id);
@@ -68,7 +68,11 @@ public class SpeakerService {
         if (!email.equalsIgnoreCase(existing.email()) && speakerDao.emailTaken(email)) {
             throw emailTaken();
         }
-        speakerDao.update(id, name, email, bio);
+        try {
+            speakerDao.update(id, name, email, bio);
+        } catch (DuplicateKeyException e) {
+            throw emailTaken();
+        }
         return getSpeaker(id);
     }
 
