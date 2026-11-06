@@ -23,6 +23,19 @@ class EmailTest {
         }
     }
 
+    // \s without UNICODE_CHARACTER_CLASS missed no-break spaces, and the pattern let through header-breaking
+    // characters and addresses no mail server accepts (over 254 characters).
+    @Test
+    void rejectsUnicodeSpacesSpecialsAndOverlongAddresses() {
+        for (String e : new String[] {"a\u00A0b@example.com", "ada@exa\u2003mple.com", "<ada@example.com>",
+                "ada,bob@example.com", "ada;bob@example.com", "\"ada\"@example.com", "ada@exam(ple).com",
+                "a".repeat(64) + "@" + "b".repeat(186) + ".com"}) {
+            assertFalse(Utils.isValidEmail(e), "'" + e + "'");
+        }
+        assertTrue(Utils.isValidEmail("\u00C5dne@example.no"));
+        assertTrue(Utils.isValidEmail("a".repeat(64) + "@" + "b".repeat(185) + ".com")); // exactly 254
+    }
+
     @Test
     void codePointsAreCharacters() {
         assertTrue(Utils.characters("😀😀") == 2);
