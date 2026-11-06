@@ -51,7 +51,8 @@ public class Utils {
      * "11/4/26, 1:05 PM", what the reviewer UI shows.
      */
     public static String usShort(Date d) {
-        DateFormat f = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.US);
+        // Spelled out instead of DateFormat.SHORT: since JDK 20 (CLDR 42) that puts U+202F before "PM".
+        SimpleDateFormat f = new SimpleDateFormat("M/d/yy, h:mm a", Locale.US);
         f.setTimeZone(UTC);
         return f.format(d);
     }

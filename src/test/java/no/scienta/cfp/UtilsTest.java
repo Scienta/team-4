@@ -41,6 +41,19 @@ class UtilsTest {
         assertEquals(4.5, Utils.roundRating(4.5));
     }
 
+    // 2026-11-04T13:05:00Z. JDK 20+ (CLDR 42) puts a narrow no-break space before "PM"; the reviewer UI wants a plain one.
+    private static final Date NOV_4_13_05_UTC = new Date(1793797500000L);
+
+    @Test
+    void usShortUsesAPlainSpaceBeforeAmPm() {
+        assertEquals("11/4/26, 1:05 PM", Utils.usShort(NOV_4_13_05_UTC));
+    }
+
+    @Test
+    void norwegianDate() {
+        assertEquals("4. nov. 2026", Utils.norwegianDate(NOV_4_13_05_UTC));
+    }
+
     @Disabled("flaky on Jenkins")
     @Test
     void nowIsCurrentTime() {

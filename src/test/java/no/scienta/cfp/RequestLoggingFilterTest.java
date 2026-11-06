@@ -28,7 +28,7 @@ class RequestLoggingFilterTest {
 
         filter.doFilter(request, response, (req, res) -> {
             StreamUtils.copyToByteArray(req.getInputStream());
-            ((javax.servlet.http.HttpServletResponse) res).setStatus(201);
+            ((jakarta.servlet.http.HttpServletResponse) res).setStatus(201);
             res.getWriter().write("{\"id\":7}");
         });
 

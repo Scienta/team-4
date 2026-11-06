@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
+import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /** Spec: registered speakers stay registered after the service is restarted (schema.sql runs again on start-up). */

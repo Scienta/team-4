@@ -62,6 +62,18 @@ class TalksTest {
         assertEquals(3, count(talks.body()));
     }
 
+    @Test
+    void aTalkHasItsSubmissionTimeAndPlainSubmissionDate() throws Exception {
+        String speaker = newSpeaker();
+        HttpResponse<String> res = http.send(request("POST", "/talks",
+                "{\"title\":\"Dates\",\"format\":\"PRESENTATION\",\"level\":\"BEGINNER\",\"speakerId\":" + speaker + "}"),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(201, res.statusCode(), res.body());
+        assertTrue(Pattern.compile("\"submittedAt\":\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\+00:00\"")
+                .matcher(res.body()).find(), res.body());
+        assertTrue(Pattern.compile("\"submittedOn\":\"\\d{4}-\\d{2}-\\d{2}\"").matcher(res.body()).find(), res.body());
+    }
+
     private String newSpeaker() throws Exception {
         HttpResponse<String> res = http.send(request("POST", "/speakers",
                 "{\"name\":\"Grace Hopper\",\"email\":\"grace-" + UUID.randomUUID() + "@example.com\"}"),

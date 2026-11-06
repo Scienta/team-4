@@ -1,6 +1,6 @@
 package no.scienta.cfp;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * Request body for POST /speakers.
