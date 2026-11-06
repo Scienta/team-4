@@ -19,8 +19,8 @@ Spec: harness `/specs/co-speakers/spec.md` (v1, drip feature, released tick 0; c
 | Non-numeric id in path | 400 (Spring default) |
 | Add someone already a co-speaker | 200, talk unchanged, keeps original position |
 | Add a third co-speaker | 409 |
-| Add the main speaker as co-speaker | 409 |
-| Remove someone who isn't a co-speaker (but exists) | 200, talk unchanged (idempotent, mirrors PUT) |
+| Add the main speaker as co-speaker | 400 (was 409; harness check-2 rejected it, tick 57) |
+| Remove someone who isn't a co-speaker (but exists) | 404 (was 200; harness check-1 rejected it, tick 57) |
 | Remove then re-add | goes to the end of the list |
 | Concurrent PUTs on the same talk | never more than 2: the talk row is locked (`FOR UPDATE`) |
 
@@ -37,8 +37,8 @@ by `id`. Added at the bottom of `schema.sql` with `IF NOT EXISTS`.
 ## Tests
 
 `CoSpeakersTest` (Testcontainers, real app on a random port): new talk has `[]`; add two in order;
-idempotent add; third → 409; main speaker → 409; unknown talk/speaker → 404; remove; remove
-non-co-speaker → 200; re-add goes last; co-speakers visible in `GET /talks` and `GET /talks/{id}`;
+idempotent add; third → 409; main speaker → 400; unknown talk/speaker → 404; remove; remove
+non-co-speaker → 404; re-add goes last; co-speakers visible in `GET /talks` and `GET /talks/{id}`;
 co-speaker's own talk list excludes it; speaker at 3 talks can still co-speak; concurrent PUTs of
 5 speakers → exactly 2 co-speakers.
 

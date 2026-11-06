@@ -61,9 +61,9 @@ jsonpath "$.coSpeakerIds[0]" == {{b_id}}
 PUT {{base_url}}/talks/{{talk_id}}/co-speakers/{{c_id}}
 HTTP 409
 
-# The main speaker as co-speaker: 409
+# The main speaker as co-speaker: 400
 PUT {{base_url}}/talks/{{talk_id}}/co-speakers/{{main_id}}
-HTTP 409
+HTTP 400
 
 # Unknown talk / speaker: 404
 PUT {{base_url}}/talks/999999999/co-speakers/{{a_id}}
@@ -85,7 +85,7 @@ HTTP 200
 [Asserts]
 jsonpath "$" count == 0
 
-# Remove B; removing again changes nothing; re-adding goes last
+# Remove B; removing again is 404; re-adding goes last
 DELETE {{base_url}}/talks/{{talk_id}}/co-speakers/{{b_id}}
 HTTP 200
 [Asserts]
@@ -93,9 +93,7 @@ jsonpath "$.coSpeakerIds" count == 1
 jsonpath "$.coSpeakerIds[0]" == {{a_id}}
 
 DELETE {{base_url}}/talks/{{talk_id}}/co-speakers/{{b_id}}
-HTTP 200
-[Asserts]
-jsonpath "$.coSpeakerIds" count == 1
+HTTP 404
 
 PUT {{base_url}}/talks/{{talk_id}}/co-speakers/{{b_id}}
 HTTP 200

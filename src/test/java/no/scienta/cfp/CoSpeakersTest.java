@@ -82,10 +82,10 @@ class CoSpeakersTest {
     }
 
     @Test
-    void mainSpeakerCannotCoSpeak() throws Exception {
+    void mainSpeakerAsCoSpeakerIs400() throws Exception {
         String main = newSpeaker();
         String talk = newTalk(main);
-        assertEquals(409, send("PUT", "/talks/" + talk + "/co-speakers/" + main).statusCode());
+        assertEquals(400, send("PUT", "/talks/" + talk + "/co-speakers/" + main).statusCode());
         assertEquals("", coSpeakers(send("GET", "/talks/" + talk).body()));
     }
 
@@ -112,12 +112,19 @@ class CoSpeakersTest {
         assertEquals(200, res.statusCode(), res.body());
         assertEquals(b, coSpeakers(res.body()));
 
-        res = send("DELETE", "/talks/" + talk + "/co-speakers/" + a);
-        assertEquals(200, res.statusCode(), res.body());
-        assertEquals(b, coSpeakers(res.body()));
-
         res = send("PUT", "/talks/" + talk + "/co-speakers/" + a);
         assertEquals(b + "," + a, coSpeakers(res.body()));
+    }
+
+    @Test
+    void removingSomeoneWhoIsNotACoSpeakerIs404() throws Exception {
+        String talk = newTalk(newSpeaker());
+        String a = newSpeaker();
+        send("PUT", "/talks/" + talk + "/co-speakers/" + a);
+        send("DELETE", "/talks/" + talk + "/co-speakers/" + a);
+
+        assertEquals(404, send("DELETE", "/talks/" + talk + "/co-speakers/" + a).statusCode());
+        assertEquals(404, send("DELETE", "/talks/" + talk + "/co-speakers/" + newSpeaker()).statusCode());
     }
 
     @Test
