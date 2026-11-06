@@ -22,7 +22,7 @@ Spec: harness `/specs/workshop-registration/spec.md` (v1, drip feature, released
 |---|---|
 | Talk doesn't exist (POST and GET) | 404 |
 | POST for a talk that isn't a `WORKSHOP` | 409 (was 404; harness check-2 rejected it, tick 84) |
-| GET for a talk that isn't a `WORKSHOP` | 404 (no check has asked yet) |
+| GET for a talk that isn't a `WORKSHOP` | 200 `[]` (was 404; harness check-2 rejected it, tick 89) |
 | Non-numeric id in path | 400 (Spring default) |
 | Body missing, name or email missing/blank | 400 |
 | Email not a valid email (same check as speakers) | 400 |

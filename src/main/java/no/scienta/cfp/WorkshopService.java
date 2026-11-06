@@ -53,12 +53,9 @@ public class WorkshopService {
         }
     }
 
+    /** Any existing talk: a non-workshop just has none (harness check-2 rejected 404 for it, tick 89). */
     public List<Registration> list(long talkId) {
-        TalkDto talk = talkDao.findById(talkId);
-        if (talk == null) {
-            throw notFound();
-        }
-        if (!WorkshopRules.WORKSHOP.equals(talk.format)) {
+        if (!talkDao.exists(talkId)) {
             throw notFound();
         }
         return registrations.findByWorkshop(talkId);
