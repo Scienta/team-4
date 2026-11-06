@@ -85,6 +85,32 @@ classDiagram
         CAPACITY = 20
         register(Talk, registered, alreadyRegistered)$
     }
+    class Room {
+        <<enum>>
+        R1
+        R2
+        R3
+    }
+    class Slot {
+        <<enum>>
+        S1
+        S2
+        S3
+        S4 long
+        S5
+        start() String
+        end() String
+        isLong() boolean
+    }
+    class ProgrammeEntry {
+        <<record>>
+        Room room
+        Slot slot
+        long talkId
+    }
+    class ProgrammeRules {
+        place(Talk, people, Room, Slot, programme, peopleOf)$ boolean
+    }
     class TalkView {
         <<record>>
         of(Talk, coSpeakerIds, RatingSummary)$ TalkView
@@ -104,6 +130,11 @@ classDiagram
     RatingSummary ..> Talk : beside
     Score ..> RatingSummary : summed into
     WorkshopRules ..> Talk
+    ProgrammeEntry --> Room
+    ProgrammeEntry --> Slot
+    ProgrammeEntry ..> Talk : schedules
+    ProgrammeRules ..> ProgrammeEntry
+    ProgrammeRules ..> Talk
     TalkView ..> Talk
     TalkView ..> CoSpeakers
     TalkView ..> RatingSummary
@@ -113,6 +144,9 @@ classDiagram
   accept. New talks come from a `Submission`, which only takes a valid `Format` and `Level`.
 - Co-speakers and ratings live in their own tables. `CoSpeakers` and `RatingSummary` are built beside the
   talk when needed, and `TalkView` joins all three into the API's talk.
+- The programme is a set of `ProgrammeEntry`s, one talk per `Room` and `Slot` (S1 09:00, S2 10:15, S3 11:30, S4 13:30 for two hours, S5 15:45). `ProgrammeRules.place` checks a
+  new entry against the whole programme: accepted, a workshop only in the long slot, room and slot free, the talk
+  not elsewhere, no speaker in two rooms at once.
 - Any rule that says no throws `Refused` with a kind: `INVALID`, `NOT_FOUND`, `NOT_PERMITTED` or
   `NOT_ALLOWED`. The message is what the client sees.
 
@@ -149,6 +183,8 @@ erDiagram
     talk ||--o{ talk_co_speaker : has
     talk ||--o{ rating : has
     talk ||--o{ workshop_registration : has
+    talk ||--o| programme_entry : "scheduled as"
+    programme_slot ||--o{ programme_entry : "locks"
 
     speaker {
         serial id PK
@@ -186,9 +222,18 @@ erDiagram
         text email "unique per talk on lower(email)"
         bigint registered_at "epoch millis"
     }
+    programme_slot {
+        text slot PK "S1 to S5, for the lock"
+    }
+    programme_entry {
+        text room PK "R1 to R3"
+        text slot PK
+        integer talk_id "unique"
+    }
 ```
 
-The legacy `vote` table (2019 voting, replaced by ratings) is still created but not used by the code.
+`programme_slot` holds the five slots, inserted at start-up; it only exists so a placement can lock its slot
+(`SELECT … FOR UPDATE`). The legacy `vote` table (2019 voting, replaced by ratings) is still created but not used by the code.
 
 ## Layers
 
@@ -196,7 +241,7 @@ The legacy `vote` table (2019 voting, replaced by ratings) is still created but 
 flowchart LR
     client([HTTP client]) --> controllers[Controllers]
     controllers --> services[Services]
-    services --> domain[Domain rules<br/>Talk, TalkStatus, Submission,<br/>CoSpeakers, Score, WorkshopRules, Speaker]
+    services --> domain[Domain rules<br/>Talk, TalkStatus, Submission,<br/>CoSpeakers, Score, WorkshopRules,<br/>ProgrammeRules, Speaker]
     services --> daos[DAOs]
     daos --> pg[(Postgres)]
     domain -. throws Refused .-> errors[ApiErrors]
