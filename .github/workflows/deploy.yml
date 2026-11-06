@@ -10,6 +10,11 @@
 # You own this file. Add your own gates (tests, Hurl examples, review checks) as jobs that the
 # deploy job `needs`; they run on GitHub-hosted runners. If you break it, you lose your own ticks.
 #
+# Deploys only when asked (the `gate` job): a push deploys if one of its commits has the word DEPLOY
+# (capitals, case-sensitive) in its message, e.g. a PR titled "... DEPLOY". Every swap of instances
+# can fail a tick of harness checks, so we batch changes into fewer deploys. A manual run
+# (Actions > deploy > Run workflow) always deploys. Tests run on every push either way.
+#
 # The organisers set the config: the secrets SCW_ACCESS_KEY and SCW_SECRET_KEY (your push key) and
 # the variables SCW_REGISTRY, SCW_CONTAINER_ID, SCW_ORGANIZATION_ID and TEAM_URL. Don't change them.
 name: deploy
@@ -50,8 +55,29 @@ jobs:
       - name: Unit tests
         run: ./mvnw -B test
 
+  # Gate: only deploy when a commit in this push says DEPLOY (or the run was started by hand).
+  # Not `contains()` in an `if:`: that is case-insensitive, and our messages mention "deploy" in passing.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      - id: check
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Started by hand: deploying."
+            echo "deploy=true" >>"$GITHUB_OUTPUT"
+          elif jq -r '.commits[]?.message, .head_commit.message // empty' "$GITHUB_EVENT_PATH" | grep -qw DEPLOY; then
+            echo "A commit in this push says DEPLOY: deploying."
+            echo "deploy=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "No commit in this push says DEPLOY: tests only, production stays as it is."
+            echo "deploy=false" >>"$GITHUB_OUTPUT"
+          fi
+
   deploy:
-    needs: tests
+    needs: [tests, gate]
+    if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

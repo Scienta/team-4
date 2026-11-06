@@ -27,7 +27,8 @@ From spec to claim, per feature (one person driving Claude Code, teammates on pa
    transitions don't compile), `WorkshopRules`. Services only lock, load, ask the rules, write.
 5. **Our own Hurl example** per feature (`examples/<feature>.hurl`), run locally against the jar.
 6. **Push to `main`**: the deploy workflow runs the tests first and only deploys if they pass
-   (`.github/workflows/deploy.yml`).
+   (`.github/workflows/deploy.yml`), and only if a commit in the push says `DEPLOY`, since every deploy can cost
+   a tick of failed checks ([deploying rule](.claude/rules/deploying.md)).
 7. **Check production** before claiming: `/health` shows the new SHA, `examples/run.sh $TEAM_URL` is green, and
    the logs (`.github/fagdag/logs.sh`) show the harness traffic with no errors.
 8. **Claim** (a person, on the harness), then read the check feedback; a FAULTY check's transcript tells us the
@@ -85,6 +86,13 @@ Both misses are the same mistake: answering **404 for something that exists but 
   failed on their very first request, `POST /speakers`, with no response at all (`status: null`): the instance swap,
   not a bug. Start-up on Scaleway took 18–27 s. We cut start-up with a Java 25 AOT cache built in the Dockerfile
   (locally at 1 CPU: 4.0 s → 1.8 s), and we batch fixes into fewer deploys. Not every deploy blips: PR #10's didn't.
+- **Error bodies have no `message` (found while building the frontend, PR #11; not a harness check).** Every
+  `ResponseStatusException` reason ("talk not found", "email already registered", …) is dropped: production answers
+  `GET /talks/999999999` with only `timestamp`, `status`, `error` and `path`, although `application.properties` sets
+  `server.error.include-message=always` (the property name is still valid in Spring Boot 4.1.2). Cause not
+  investigated yet. **Why we missed it:** our tests and Hurl files assert status codes only, never the error body,
+  and the harness hasn't checked messages either. The frontend works around it by explaining each refusal per action
+  and status code; the backend is unchanged.
 
 ## 5. Reusable artifacts
 
