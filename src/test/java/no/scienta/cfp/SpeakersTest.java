@@ -210,6 +210,35 @@ class SpeakersTest {
         assertEquals(200, ok.statusCode(), ok.body());
     }
 
+    @Test
+    void concurrentUpdatesAndRegistrationsToOneEmailHaveOneWinner() throws Exception {
+        for (int round = 0; round < 5; round++) {
+            String email = "taken-" + UUID.randomUUID() + "@example.com";
+            List<Long> ids = new ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                ids.add(id(register("Mover " + i, uniqueEmail())));
+            }
+            List<CompletableFuture<HttpResponse<String>>> sent = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i++) {
+                String variant = i % 2 == 0 ? email : email.toUpperCase();
+                sent.add(api.sendAsync("PUT", "/speakers/" + ids.get(i), speaker("Mover " + i, variant)));
+                if (i % 4 == 0) {
+                    sent.add(api.sendAsync("POST", "/speakers", speaker("Newcomer " + i, variant)));
+                }
+            }
+            int won = 0;
+            for (CompletableFuture<HttpResponse<String>> f : sent) {
+                HttpResponse<String> res = f.join();
+                int code = res.statusCode();
+                assertTrue(code == 200 || code == 201 || code == 409, code + " " + res.body());
+                if (code != 409) {
+                    won++;
+                }
+            }
+            assertEquals(1, won);
+        }
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static String uniqueEmail() {

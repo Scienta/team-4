@@ -33,6 +33,9 @@ Outside the spec, but threatening "registered speakers stay registered":
 3. **Non-string name** (`123`): leave as is; not worth the risk to passing checks.
 4. **Error format:** Spring's default `{status, error, message, path}`, unchanged.
 5. `PUT /speakers/{id}` follows the same rules as `POST` (name, email, bio ≤ 500), 400 otherwise.
+6. `PUT /speakers/{id}` to an email another speaker holds is 409, also when two requests race for it
+   (update+update or update+register): the unique index's `DuplicateKeyException` maps to 409 as in `POST`.
+   Was 500 for the race loser. Test: `SpeakersTest.concurrentUpdatesAndRegistrationsToOneEmailHaveOneWinner`.
 
 ## Tests
 
