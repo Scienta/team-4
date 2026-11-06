@@ -1,8 +1,11 @@
 package no.scienta.cfp;
 
+import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +21,22 @@ public class ProgrammeController {
 
     public ProgrammeController(ProgrammeService service) {
         this.service = service;
+    }
+
+    @GetMapping("/programme")
+    public List<ProgrammeRow> export() {
+        return service.export();
+    }
+
+    /**
+     * text/csv whatever the client accepts: the Content-Type is set on the response itself, so Spring writes it
+     * as is instead of negotiating (an Accept: application/json would otherwise get a 406).
+     */
+    @GetMapping("/programme.csv")
+    public ResponseEntity<String> exportCsv() {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(ProgrammeCsv.write(service.export()));
     }
 
     @PutMapping("/programme/{room}/{slot}")

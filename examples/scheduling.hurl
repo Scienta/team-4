@@ -2,6 +2,18 @@
 # Run: hurl --test --variable base_url=http://localhost:8080 scheduling.hurl
 # Uses R3/S5 and R2/S5 and R3/S4, and empties them again at the end.
 
+# Empty the cells we use first: the programme is shared, and a failed earlier run (or, in production, a harness
+# check) can leave a talk there. Against production this can disturb a harness check that is using the cell.
+DELETE {{base_url}}/programme/R3/S5
+HTTP *
+
+DELETE {{base_url}}/programme/R2/S5
+HTTP *
+
+DELETE {{base_url}}/programme/R3/S4
+HTTP *
+
+
 # Setup: two speakers; an accepted presentation, an accepted workshop, a submitted talk,
 # and an accepted talk whose co-speaker is the first speaker
 POST {{base_url}}/speakers

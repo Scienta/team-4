@@ -1,5 +1,8 @@
 package no.scienta.cfp;
 
+import java.util.Objects;
+import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,11 +24,49 @@ public class ProgrammeService {
     private final ProgrammeDao programme;
     private final TalkDao talkDao;
     private final CoSpeakerDao coSpeakerDao;
+    private final SpeakerDao speakerDao;
 
-    public ProgrammeService(ProgrammeDao programme, TalkDao talkDao, CoSpeakerDao coSpeakerDao) {
+    public ProgrammeService(ProgrammeDao programme, TalkDao talkDao, CoSpeakerDao coSpeakerDao, SpeakerDao speakerDao) {
         this.programme = programme;
         this.talkDao = talkDao;
         this.coSpeakerDao = coSpeakerDao;
+        this.speakerDao = speakerDao;
+    }
+
+    /**
+     * The whole programme for the export, like a day: earliest slot first, then by room. Talks and speaker names as
+     * they are now; withdrawn talks left out. A handful of queries for the whole programme (at most 15 entries).
+     */
+    public List<ProgrammeRow> export() {
+        List<ProgrammeEntry> entries = new ArrayList<>(programme.findAll());
+        entries.sort(Comparator.comparing(ProgrammeEntry::slot).thenComparing(ProgrammeEntry::room));
+        List<Long> talkIds = entries.stream().map(ProgrammeEntry::talkId).toList();
+        Map<Long, Talk> talks = new HashMap<>();
+        for (Long id : talkIds) {
+            talkDao.findById(id).ifPresent(t -> talks.put(id, t));
+        }
+        Map<Long, List<Long>> coSpeakers = coSpeakerDao.findByTalks(talkIds);
+        Set<Long> speakerIds = new HashSet<>();
+        talks.values().forEach(t -> speakerIds.add(t.mainSpeakerId()));
+        coSpeakers.values().forEach(speakerIds::addAll);
+        Map<Long, String> names = speakerDao.names(speakerIds);
+
+        List<ProgrammeRow> rows = new ArrayList<>();
+        for (ProgrammeEntry e : entries) {
+            Talk talk = talks.get(e.talkId());
+            if (talk == null) {
+                continue; // talks are never deleted; nothing to show if one ever is
+            }
+            if (talk.status() instanceof TalkStatus.Withdrawn) {
+                continue; // stays in its cell (the programme stays as it is) but isn't printed (programme-export.md)
+            }
+            List<String> speakers = new ArrayList<>();
+            speakers.add(names.get(talk.mainSpeakerId()));
+            coSpeakers.getOrDefault(talk.id(), List.of()).forEach(id -> speakers.add(names.get(id)));
+            speakers.removeIf(Objects::isNull);
+            rows.add(ProgrammeRow.of(e, talk, speakers));
+        }
+        return rows;
     }
 
     /**

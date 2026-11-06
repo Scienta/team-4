@@ -75,19 +75,6 @@ public class Utils {
         return f.format(d);
     }
 
-    /**
-     * Makes a value safe for the semicolon CSV export.
-     */
-    public static String csv(String s) {
-        if (s == null) {
-            return "";
-        }
-        if (s.contains(";") || s.contains("\"")) {
-            return "\"" + s.replace("\"", "'") + "\"";
-        }
-        return s;
-    }
-
     // local@domain.tld: no whitespace (Unicode too, hence (?U)), exactly one @, a dot in the domain, no empty
     // labels, none of the specials that need quoting in an address: < > ( ) [ ] , ; : " \
     private static final String NOT_IN_ADDRESS = "\\s@<>()\\[\\],;:\"\\\\";
