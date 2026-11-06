@@ -207,6 +207,31 @@ class ConferenceServiceTest {
         assertStatus(HttpStatus.NOT_FOUND, () -> service.rate(99, 2, score(4)));
     }
 
+    // ---------------------------------------------------------------- co-speakers
+
+    @Test
+    void mainSpeakerCannotBeTheirOwnCoSpeaker() {
+        long main = register("main@example.com");
+        long talk = service.submitTalk(form(main)).id;
+        assertStatus(HttpStatus.BAD_REQUEST, () -> service.addCoSpeaker(talk, main));
+    }
+
+    @Test
+    void removingSomeoneWhoIsNotACoSpeakerIsNotFound() {
+        long talk = newTalk();
+        long ada = register("ada@example.com");
+        assertStatus(HttpStatus.NOT_FOUND, () -> service.removeCoSpeaker(talk, ada));
+    }
+
+    @Test
+    void removedCoSpeakerCanNotBeRemovedTwice() {
+        long talk = newTalk();
+        long ada = register("ada@example.com");
+        service.addCoSpeaker(talk, ada);
+        assertEquals(Arrays.asList(), service.removeCoSpeaker(talk, ada).coSpeakerIds);
+        assertStatus(HttpStatus.NOT_FOUND, () -> service.removeCoSpeaker(talk, ada));
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static void assertStatus(HttpStatus status, Executable call) {

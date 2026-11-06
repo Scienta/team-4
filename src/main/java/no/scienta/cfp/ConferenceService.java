@@ -252,7 +252,7 @@ public class ConferenceService {
         Long mainSpeaker = lockTalk(talkId);
         requireSpeaker(speakerId);
         if (mainSpeaker == speakerId) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "the main speaker can't also be a co-speaker");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "the main speaker can't also be a co-speaker");
         }
         List<Long> current = coSpeakerDao.findByTalk(talkId);
         if (!current.contains(speakerId)) {
@@ -264,11 +264,14 @@ public class ConferenceService {
         return getTalk(talkId);
     }
 
-    /** Removes a co-speaker. Not a co-speaker: unchanged. */
+    /** Removes a co-speaker. Not a co-speaker of this talk: 404. */
     @Transactional
     public TalkDto removeCoSpeaker(long talkId, long speakerId) {
         lockTalk(talkId);
         requireSpeaker(speakerId);
+        if (!coSpeakerDao.findByTalk(talkId).contains(speakerId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker is not a co-speaker of this talk");
+        }
         coSpeakerDao.remove(talkId, speakerId);
         return getTalk(talkId);
     }
