@@ -47,6 +47,12 @@ public class TalkDao {
         return jdbc.query("SELECT " + COLUMNS + " FROM talk ORDER BY id", mapper);
     }
 
+    /** Locks the talk row for the rest of the transaction and returns its main speaker, or null if no such talk. */
+    public Long lockMainSpeaker(long id) {
+        List<Long> list = jdbc.queryForList("SELECT speaker_id FROM talk WHERE id = ? FOR UPDATE", Long.class, id);
+        return list.isEmpty() ? null : list.get(0);
+    }
+
     public boolean exists(long id) {
         Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM talk WHERE id = ?", Integer.class, id);
         return n != null && n > 0;

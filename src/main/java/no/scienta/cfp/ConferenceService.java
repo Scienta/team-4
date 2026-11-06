@@ -41,13 +41,15 @@ public class ConferenceService {
     private final SpeakerDao speakerDao;
     private final TalkDao talkDao;
     private final RatingDao ratingDao;
+    private final CoSpeakerDao coSpeakerDao;
     private final NotificationService notifications;
 
     public ConferenceService(SpeakerDao speakerDao, TalkDao talkDao, RatingDao ratingDao,
-                             NotificationService notifications) {
+                             CoSpeakerDao coSpeakerDao, NotificationService notifications) {
         this.speakerDao = speakerDao;
         this.talkDao = talkDao;
         this.ratingDao = ratingDao;
+        this.coSpeakerDao = coSpeakerDao;
         this.notifications = notifications;
     }
 
@@ -93,7 +95,7 @@ public class ConferenceService {
     public Map<String, Object> getSpeaker(long id) {
         Map<String, Object> speaker = speakerDao.findById(id);
         if (speaker == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
+            throw speakerNotFound();
         }
         return speaker;
     }
@@ -168,19 +170,17 @@ public class ConferenceService {
     public TalkDto getTalk(long id) {
         TalkDto talk = talkDao.findById(id);
         if (talk == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
+            throw talkNotFound();
         }
-        addRatings(talk);
+        decorate(talk);
         return talk;
     }
 
     public List<TalkDto> getTalksForSpeaker(long speakerId) {
-        if (speakerDao.findById(speakerId) == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
-        }
+        requireSpeaker(speakerId);
         List<TalkDto> talks = talkDao.findBySpeaker(speakerId);
         for (TalkDto t : talks) {
-            addRatings(t);
+            decorate(t);
         }
         return talks;
     }
@@ -191,7 +191,7 @@ public class ConferenceService {
         }
         List<TalkDto> talks = speakerId == null ? talkDao.findAll() : talkDao.findBySpeaker(speakerId);
         for (TalkDto t : talks) {
-            addRatings(t);
+            decorate(t);
         }
         if ("rating".equals(sort)) {
             List<TalkDto> rated = new ArrayList<>();
@@ -220,6 +220,12 @@ public class ConferenceService {
         return talks;
     }
 
+    /** Fills in the fields of a talk that live in other tables. */
+    private void decorate(TalkDto talk) {
+        addRatings(talk);
+        talk.coSpeakerIds = coSpeakerDao.findByTalk(talk.id);
+    }
+
     private void addRatings(TalkDto talk) {
         Map<String, Object> stats = ratingDao.stats(talk.id);
         int count = ((Number) stats.get("cnt")).intValue();
@@ -232,6 +238,69 @@ public class ConferenceService {
     private Double calculateAverage(long total, int count) {
         return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
         // return Utils.roundRating((double) total / count);
+    }
+
+    // ---------------------------------------------------------------- co-speakers
+
+    static final int MAX_CO_SPEAKERS = 2;
+
+    /**
+     * Adds a co-speaker. Already a co-speaker: unchanged. The talk row is locked so concurrent adds can't exceed the max.
+     */
+    @Transactional
+    public TalkDto addCoSpeaker(long talkId, long speakerId) {
+        Long mainSpeaker = lockTalk(talkId);
+        requireSpeaker(speakerId);
+        if (mainSpeaker == speakerId) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "the main speaker can't also be a co-speaker");
+        }
+        List<Long> current = coSpeakerDao.findByTalk(talkId);
+        if (!current.contains(speakerId)) {
+            if (current.size() >= MAX_CO_SPEAKERS) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "a talk has at most " + MAX_CO_SPEAKERS + " co-speakers");
+            }
+            coSpeakerDao.add(talkId, speakerId);
+        }
+        return getTalk(talkId);
+    }
+
+    /** Removes a co-speaker. Not a co-speaker: unchanged. */
+    @Transactional
+    public TalkDto removeCoSpeaker(long talkId, long speakerId) {
+        lockTalk(talkId);
+        requireSpeaker(speakerId);
+        coSpeakerDao.remove(talkId, speakerId);
+        return getTalk(talkId);
+    }
+
+    private Long lockTalk(long talkId) {
+        Long mainSpeaker = talkDao.lockMainSpeaker(talkId);
+        if (mainSpeaker == null) {
+            throw talkNotFound();
+        }
+        return mainSpeaker;
+    }
+
+    // ---------------------------------------------------------------- not found
+
+    private void requireSpeaker(long speakerId) {
+        if (!speakerDao.exists(speakerId)) {
+            throw speakerNotFound();
+        }
+    }
+
+    private void requireTalk(long talkId) {
+        if (!talkDao.exists(talkId)) {
+            throw talkNotFound();
+        }
+    }
+
+    private static ResponseStatusException speakerNotFound() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
+    }
+
+    private static ResponseStatusException talkNotFound() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
     }
 
     // ---------------------------------------------------------------- statistics
@@ -286,9 +355,7 @@ public class ConferenceService {
         if (s < 1 || s > 5) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "score must be 1-5");
         }
-        if (!talkDao.exists(talkId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
-        }
+        requireTalk(talkId);
         String now = Utils.now();
         ratingDao.save(talkId, reviewerId, s, now);
 

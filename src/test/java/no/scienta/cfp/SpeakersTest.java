@@ -3,19 +3,15 @@ package no.scienta.cfp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -39,7 +35,12 @@ class SpeakersTest {
     @Value("${local.server.port}")
     int port;
 
-    private final HttpClient http = HttpClient.newHttpClient();
+    private TestApi api;
+
+    @BeforeEach
+    void setUp() {
+        api = new TestApi(port);
+    }
 
     @Test
     void anEmailRegistersOnceRegardlessOfLetterCase() throws Exception {
@@ -54,8 +55,7 @@ class SpeakersTest {
         List<CompletableFuture<HttpResponse<String>>> sent = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             String variant = i % 2 == 0 ? email : email.toUpperCase();
-            sent.add(http.sendAsync(request("POST", "/speakers", speaker("Racer " + i, variant)),
-                    HttpResponse.BodyHandlers.ofString()));
+            sent.add(api.sendAsync("POST", "/speakers", speaker("Racer " + i, variant)));
         }
         int created = 0;
         for (CompletableFuture<HttpResponse<String>> f : sent) {
@@ -225,9 +225,7 @@ class SpeakersTest {
     }
 
     private static long id(HttpResponse<String> res) {
-        Matcher m = Pattern.compile("\"id\":(\\d+)").matcher(res.body());
-        assertTrue(m.find(), res.body());
-        return Long.parseLong(m.group(1));
+        return Long.parseLong(TestApi.firstId(res.body()));
     }
 
     private HttpResponse<String> registerWithBio(String bio) throws Exception {
@@ -235,29 +233,22 @@ class SpeakersTest {
     }
 
     private HttpResponse<String> post(String path, String json) throws Exception {
-        return http.send(request("POST", path, json), HttpResponse.BodyHandlers.ofString());
+        return api.send("POST", path, json);
     }
 
     private HttpResponse<String> put(String path, String json) throws Exception {
-        return http.send(request("PUT", path, json), HttpResponse.BodyHandlers.ofString());
+        return api.send("PUT", path, json);
     }
 
     private HttpResponse<String> register(String name, String email) throws Exception {
-        return http.send(request("POST", "/speakers", speaker(name, email)), HttpResponse.BodyHandlers.ofString());
+        return post("/speakers", speaker(name, email));
     }
 
     private HttpResponse<String> send(String method, String path) throws Exception {
-        return http.send(request(method, path, null), HttpResponse.BodyHandlers.ofString());
+        return api.send(method, path);
     }
 
     private static String speaker(String name, String email) {
         return "{\"name\":\"" + name + "\",\"email\":\"" + email + "\"}";
-    }
-
-    private HttpRequest request(String method, String path, String json) {
-        return HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .header("Content-Type", "application/json")
-                .method(method, json == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(json))
-                .build();
     }
 }

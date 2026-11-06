@@ -1,6 +1,8 @@
 package no.scienta.cfp;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import tools.jackson.databind.annotation.JsonSerialize;
 import tools.jackson.databind.ser.std.ToStringSerializer;
@@ -24,4 +26,5 @@ public class TalkDto {
     public java.sql.Date submittedOn;
     public Double averageRating;
     public int ratingCount;
+    public List<Long> coSpeakerIds = new ArrayList<>();
 }
