@@ -1,5 +1,7 @@
 package no.scienta.cfp;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -209,7 +211,12 @@ public class ConferenceService {
         int count = ((Number) stats.get("cnt")).intValue();
         long total = ((Number) stats.get("total")).longValue();
         talk.ratingCount = count;
-        talk.averageRating = count == 0 ? null : Utils.roundRating((double) total / count);
+        talk.averageRating = count == 0 ? null : calculateAverage(total, count);
+    }
+
+    // Ratings spec: 1 decimal, half up (4.25 -> 4.3). Unlike the /admin/stats average, which is cut off (CFP-61).
+    private static Double calculateAverage(long total, int count) {
+        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
     }
 
     // ---------------------------------------------------------------- co-speakers

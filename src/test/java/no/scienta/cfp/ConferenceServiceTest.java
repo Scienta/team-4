@@ -160,12 +160,12 @@ class ConferenceServiceTest {
     // ---------------------------------------------------------------- statistics
 
     @Test
-    void statsAverageIsRoundedHalfUpLikeTheTalkAverage() {
+    void statsAverageIsCutOffUnlikeTheTalkAverage() {
         newTalk(4);          // 4.0
         newTalk(5, 4);       // 4.5
         newTalk();           // unrated, not counted
-        // (4.0 + 4.5) / 2 = 4.25, shown as 4.3 (ratings spec: halves rounded up)
-        assertEquals(4.3, service.statistics().get("averageRating"));
+        // (4.0 + 4.5) / 2 = 4.25, cut off to 4.2 (CFP-61); a talk's own 4.25 would show as 4.3
+        assertEquals(4.2, service.statistics().get("averageRating"));
     }
 
     @Test

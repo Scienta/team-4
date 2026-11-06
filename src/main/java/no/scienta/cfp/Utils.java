@@ -1,7 +1,5 @@
 package no.scienta.cfp;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -108,11 +106,11 @@ public class Utils {
     }
 
     /**
-     * Rounds a rating average to one decimal, halves up (ratings spec: 4, 4, 4, 5 averages 4.25, shown as 4.3).
-     * Rounds the double's shortest decimal form, so 4.15 gives 4.2 although the nearest double is just below 4.15.
+     * Cuts a rating average off at one decimal (CFP-61): 4.25 gives 4.2. Used by /admin/stats only; a talk's own
+     * average rounds halves up instead (see ConferenceService.calculateAverage).
      */
     public static double roundRating(double avg) {
-        return BigDecimal.valueOf(avg).setScale(1, RoundingMode.HALF_UP).doubleValue();
+        return Math.floor(avg * 10) / 10.0;
     }
 
     public static String capitalize(String s) {

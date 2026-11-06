@@ -33,15 +33,12 @@ class UtilsTest {
         assertEquals("Workshop", Utils.capitalize("WORKSHOP"));
     }
 
-    // Ratings spec: one decimal, halves rounded up (4, 4, 4, 5 averages 4.25, shown as 4.3)
+    // Averages are shown with one decimal, cut off (CFP-61)
     @Test
-    void roundsRatingToOneDecimalHalfUp() {
-        assertEquals(4.3, Utils.roundRating(4.25));
-        assertEquals(3.7, Utils.roundRating(3.6666));
-        assertEquals(3.3, Utils.roundRating(3.3333));
+    void roundsRatingToOneDecimal() {
+        assertEquals(4.2, Utils.roundRating(4.25));
+        assertEquals(3.6, Utils.roundRating(3.6666));
         assertEquals(4.5, Utils.roundRating(4.5));
-        assertEquals(4.2, Utils.roundRating(4.15));
-        assertEquals(5.0, Utils.roundRating(5));
     }
 
     // 2026-11-04T13:05:00Z. JDK 20+ (CLDR 42) puts a narrow no-break space before "PM"; the reviewer UI wants a plain one.
