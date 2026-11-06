@@ -35,7 +35,7 @@ public class ProgrammeService {
 
     /**
      * The whole programme for the export, like a day: earliest slot first, then by room. Talks and speaker names as
-     * they are now. A handful of queries for the whole programme (at most 15 entries).
+     * they are now; withdrawn talks left out. A handful of queries for the whole programme (at most 15 entries).
      */
     public List<ProgrammeRow> export() {
         List<ProgrammeEntry> entries = new ArrayList<>(programme.findAll());
@@ -56,6 +56,9 @@ public class ProgrammeService {
             Talk talk = talks.get(e.talkId());
             if (talk == null) {
                 continue; // talks are never deleted; nothing to show if one ever is
+            }
+            if (talk.status() instanceof TalkStatus.Withdrawn) {
+                continue; // stays in its cell (the programme stays as it is) but isn't printed (programme-export.md)
             }
             List<String> speakers = new ArrayList<>();
             speakers.add(names.get(talk.mainSpeakerId()));

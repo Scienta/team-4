@@ -102,19 +102,37 @@ class ProgrammeExportTest {
     }
 
     @Test
-    void speakersAndStatusAsTheyAreNow() throws Exception {
+    void speakersAsTheyAreNow() throws Exception {
         String main = speaker("Old Name");
-        String talk = accepted("Still here", "PRESENTATION", main);
+        String talk = accepted("Renamed", "PRESENTATION", main);
         put("R2", "S3", talk);
 
         HttpResponse<String> renamed = api.send("PUT", "/speakers/" + main,
                 "{\"name\":\"New Name\",\"email\":\"renamed-" + UUID.randomUUID() + "@example.com\"}");
         assertEquals(200, renamed.statusCode(), renamed.body());
-        assertEquals(200, api.send("POST", "/talks/" + talk + "/withdraw", "{\"speakerId\":" + main + "}").statusCode());
 
         assertTrue(api.send("GET", "/programme").body().contains("\"speakers\":[\"New Name\"]"));
-        assertEquals(HEADER + "S3,11:30,12:30,R2," + talk + ",Still here,PRESENTATION,New Name\n",
+        assertEquals(HEADER + "S3,11:30,12:30,R2," + talk + ",Renamed,PRESENTATION,New Name\n",
                 api.send("GET", "/programme.csv").body());
+    }
+
+    /** Decision (programme-export.md): withdrawn talks stay in their programme cell but are left out of the export. */
+    @Test
+    void withdrawnTalksAreNotInTheExport() throws Exception {
+        String main = speaker("Gone Speaker");
+        String gone = accepted("Withdrawn later", "PRESENTATION", main);
+        String kept = accepted("Still on", "LIGHTNING_10", speaker("Kept Speaker"));
+        put("R1", "S2", gone);
+        put("R2", "S2", kept);
+        assertEquals(200, api.send("POST", "/talks/" + gone + "/withdraw", "{\"speakerId\":" + main + "}").statusCode());
+
+        String json = api.send("GET", "/programme").body();
+        assertTrue(json.contains("\"talkId\":" + kept + ","), json);
+        assertTrue(!json.contains("\"talkId\":" + gone + ","), json);
+        assertEquals(HEADER + "S2,10:15,11:15,R2," + kept + ",Still on,LIGHTNING_10,Kept Speaker\n",
+                api.send("GET", "/programme.csv").body());
+        // the programme itself stays as it is (scheduling spec): the cell still holds the withdrawn talk
+        assertTrue(api.send("GET", "/programme/R1/S2").body().contains("\"talkId\":" + gone));
     }
 
     @Test

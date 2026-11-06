@@ -24,7 +24,8 @@ Spec: harness `/specs/programme-export/spec.md` (v1, drip feature, released tick
 
 | Case | Answer |
 |---|---|
-| A withdrawn (or otherwise changed) talk still on the programme | listed, with its current title, format and speakers ("everything on the programme") |
+| A withdrawn talk still on the programme | **left out** of both exports (decided by the team, tick ~140: the website and printed programme shouldn't show talks that won't happen). It stays in its cell: `GET /programme/{room}/{slot}` still shows it, as scheduling says the programme stays as it is. |
+| A talk otherwise changed after placing (renamed speaker, new co-speaker) | listed, with its current title, format and speakers |
 | `format` | as stored on the talk |
 | `Content-Type` of the CSV | `text/csv; charset=UTF-8` |
 | `Content-Disposition` | none (not asked for; the print shop fetches the URL) |
@@ -42,6 +43,6 @@ few queries and sorts. `ProgrammeController` gets the two GETs.
 `ProgrammeCsvTest` (plain JUnit): header only when empty; exact bytes for a few rows; quoting of comma, quote,
 CR, LF; no quoting otherwise; speakers joined with `"; "`; UTF-8 names. `ProgrammeExportTest` (Testcontainers):
 order across slots and rooms; JSON and CSV agree; speakers main-first then co-speakers in order; current title
-and names after a change; withdrawn talk still listed; `text/csv` with `Accept: application/json`; empty programme.
+and names after a change; withdrawn talk left out of both (but still in its cell); `text/csv` with `Accept: application/json`; empty programme.
 
 `examples/programme-export.hurl`.
