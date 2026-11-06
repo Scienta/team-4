@@ -53,8 +53,24 @@ public class ConferenceService {
 
     // ---------------------------------------------------------------- speakers
 
+    static final int MAX_BIO = 500;
+
+    /** The spec's rules for a speaker, shared by registration and the admin update. */
+    private static void checkSpeaker(String name, String email, String bio) {
+        if (Utils.isEmpty(name)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
+        }
+        if (!Utils.isValidEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
+        }
+        if (Utils.characters(bio) > MAX_BIO) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bio is longer than " + MAX_BIO + " characters");
+        }
+    }
+
     @Transactional
     public Map<String, Object> registerSpeaker(SpeakerForm form) {
+        checkSpeaker(form.getName(), form.getEmail(), form.getBio());
         if (speakerDao.emailTaken(form.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }
@@ -85,15 +101,7 @@ public class ConferenceService {
     @Transactional
     public Map<String, Object> updateSpeaker(long id, String name, String email, String bio) {
         Map<String, Object> existing = getSpeaker(id);
-        if (name == null || name.equals("")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
-        }
-        if (!Utils.isValidEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
-        }
-        if (bio != null && bio.length() > 1000) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bio too long");
-        }
+        checkSpeaker(name, email, bio);
         if (!email.equalsIgnoreCase((String) existing.get("email")) && speakerDao.emailTaken(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }

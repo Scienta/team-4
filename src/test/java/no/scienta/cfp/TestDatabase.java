@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -26,6 +28,20 @@ final class TestDatabase {
         String name = "cfp_" + COUNTER.incrementAndGet();
         createDatabase(name);
         pointAt(registry, POSTGRES, name);
+    }
+
+    /** Creates an empty database and returns the PG* properties for it, for apps started by hand. */
+    static Map<String, Object> freshProperties() {
+        String name = "cfp_" + COUNTER.incrementAndGet();
+        createDatabase(name);
+        Map<String, Object> props = new HashMap<>();
+        props.put("PGHOST", POSTGRES.getHost());
+        props.put("PGPORT", POSTGRES.getMappedPort(5432));
+        props.put("PGDATABASE", name);
+        props.put("PGUSER", POSTGRES.getUsername());
+        props.put("PGPASSWORD", POSTGRES.getPassword());
+        props.put("PGSSLMODE", "disable");
+        return props;
     }
 
     /** Points the app at a database through the deploy contract's PG* variables, as on Scaleway. */

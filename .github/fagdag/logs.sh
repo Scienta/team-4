@@ -12,6 +12,8 @@
 #                  nanoseconds (default: the last 24 hours)
 #   --url URL      another Loki URL instead of .fagdag/logs-url
 #   --token TOKEN  another token instead of .fagdag/logs-token
+#   --json         print a JSON array instead of text: one object per line, oldest first, with
+#                  time (RFC 3339, ms), level, instance and message
 #
 # query_range doesn't stream. To follow the logs live, use logcli:
 #   LOKI_ADDR=$(cat .fagdag/logs-url) LOKI_BEARER_TOKEN=$(cat .fagdag/logs-token) \
@@ -19,20 +21,21 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [--tail N] [--since TIME] [--url URL] [--token TOKEN]" >&2
+  echo "Usage: $0 [--tail N] [--since TIME] [--url URL] [--token TOKEN] [--json]" >&2
   exit 2
 }
 
 # The repo's .fagdag/, found from this script's place (.github/fagdag/) so any working directory works.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fagdag_dir="$(dirname "$(dirname "$here")")/.fagdag"
-tail=200 since="" url="" token=""
+tail=200 since="" url="" token="" json=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --tail) [ $# -ge 2 ] || usage; tail="$2"; shift ;;
     --since) [ $# -ge 2 ] || usage; since="$2"; shift ;;
     --url) [ $# -ge 2 ] || usage; url="$2"; shift ;;
     --token) [ $# -ge 2 ] || usage; token="$2"; shift ;;
+    --json) json=1 ;;
     *) usage ;;
   esac
   shift
@@ -62,6 +65,19 @@ body="$(curl --silent --show-error --fail-with-body --max-time 30 -G \
   echo "$body" >&2
   exit 1
 }
+
+if [ -n "$json" ]; then
+  # A line is usually JSON itself ({"resource_instance", "message"}); fall back to the raw text if not.
+  jq '[.data.result[] | .stream as $s | .values[]
+      | (.[1] | (try fromjson catch null)) as $p
+      | {ts: .[0],
+         time: ((.[0][0:10] | tonumber | todate | sub("Z$"; "")) + "." + .[0][10:13] + "Z"),
+         level: $s.detected_level,
+         instance: (if $p | type == "object" then $p.resource_instance else null end),
+         message: (if $p | type == "object" then $p.message else .[1] end)}]
+    | sort_by(.ts) | map(del(.ts))' <<<"$body"
+  exit 0
+fi
 
 # Every stream's lines, merged and sorted by their nanosecond timestamps (all 19 digits).
 lines="$(jq -r '[.data.result[].values[]] | sort_by(.[0]) | .[]

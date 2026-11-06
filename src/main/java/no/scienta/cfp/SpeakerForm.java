@@ -1,7 +1,6 @@
 package no.scienta.cfp;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
 
 /**
  * Request body for POST /speakers.
@@ -14,7 +13,7 @@ public class SpeakerForm {
     @NotBlank
     private String email;
 
-    @Size(max = 500)
+    // at most ConferenceService.MAX_BIO characters, checked there: @Size counts an emoji as two
     private String bio;
 
     // TODO twitter handle, see CFP-112

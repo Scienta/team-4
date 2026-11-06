@@ -49,6 +49,8 @@ public class SpeakerDao {
 
     // Used by the old admin page to look people up.
     public List<Map<String, Object>> search(String name) {
-        return jdbc.queryForList("SELECT id, name, email, bio FROM speaker WHERE name ILIKE '%" + name + "%' ORDER BY name");
+        String literal = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return jdbc.queryForList("SELECT id, name, email, bio FROM speaker WHERE name ILIKE ? ORDER BY name",
+                "%" + literal + "%");
     }
 }
