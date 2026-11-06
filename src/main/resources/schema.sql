@@ -56,3 +56,13 @@ CREATE TABLE IF NOT EXISTS talk_co_speaker (
     speaker_id INTEGER NOT NULL,
     PRIMARY KEY (talk_id, speaker_id)
 );
+
+-- 2026-11 workshop registrations: at most 20 per workshop, one per email (any case), in order of id
+CREATE TABLE IF NOT EXISTS workshop_registration (
+    id            SERIAL PRIMARY KEY,
+    talk_id       INTEGER NOT NULL,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL,                    -- as the attendee typed it
+    registered_at BIGINT NOT NULL                   -- epoch millis (UTC)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_workshop_registration_email ON workshop_registration (talk_id, lower(email));
