@@ -97,3 +97,19 @@ _Avoid_: Signup, booking, ticket
 **Capacity**:
 How many registrations a workshop takes: 20, never more.
 _Avoid_: Limit, seats (for the number)
+
+## Programme
+
+**Programme**:
+Which accepted talk is on in which room and slot. A talk is on the programme at most once, and no speaker or
+co-speaker is in two rooms in the same slot. Later changes to a talk leave the programme as it is.
+_Avoid_: Schedule, agenda, timetable
+
+**Room**:
+One of the fixed rooms talks are held in: R1, R2 and R3.
+_Avoid_: Track, hall, stage
+
+**Slot**:
+One of the fixed time periods of the day, the same in every room. One of them is long; a workshop can only go
+in the long slot, other talks fit any slot.
+_Avoid_: Time slot, session, period
