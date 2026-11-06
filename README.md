@@ -93,7 +93,7 @@ pull error only in the `error_message`, and a build error in the Actions log.
 **Build and run locally.** Docker is needed for both: the tests start Postgres with
 Testcontainers, and `docker compose up -d` starts a local Postgres matching the defaults in
 `application.properties` (`localhost:5432`, database, user and password `cfp`). Then `./mvnw package`
-(Java 11) and `java -jar target/cfp.jar`, or `docker build .` to build what gets deployed.
+(Java 25) and `java -jar target/cfp.jar`, or `docker build .` to build what gets deployed.
 
 **`REVIEW.md`, `workflow/` and `.claude/`.** Keep `REVIEW.md` as a running log from the start; it
 has the showcase brief. Your workflow artifacts go in `workflow/` and `.claude/`.

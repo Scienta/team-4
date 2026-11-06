@@ -2,6 +2,9 @@ package no.scienta.cfp;
 
 import java.util.Date;
 
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
+
 /**
  * A talk as the API returns it. Also used internally all over the place.
  */
@@ -15,7 +18,10 @@ public class TalkDto {
     public Integer durationMinutes;
     public String status;
     public Date submittedAt;
-    public java.sql.Date submittedOn;  // the reporting tool wants a plain date
+    // The reporting tool wants a plain date. Jackson 2 wrote java.sql.Date as toString() ("2026-11-06"); Jackson 3
+    // writes it as a full UTC timestamp, which also shifts the day, so keep toString() explicitly.
+    @JsonSerialize(using = ToStringSerializer.class)
+    public java.sql.Date submittedOn;
     public Double averageRating;
     public int ratingCount;
 }
