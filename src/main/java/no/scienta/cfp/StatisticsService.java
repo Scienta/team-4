@@ -21,7 +21,7 @@ public class StatisticsService {
     }
 
     public Map<String, Object> statistics() {
-        List<TalkDto> talks = talkService.listTalks(null, null);
+        List<TalkView> talks = talkService.listTalks(null, null);
         Map<String, Integer> byFormat = new LinkedHashMap<>();
         Map<String, Integer> byLevel = new LinkedHashMap<>();
         Map<String, Integer> byStatus = new LinkedHashMap<>();
@@ -29,14 +29,14 @@ public class StatisticsService {
         int minutes = 0;
         double ratingSum = 0;
         int rated = 0;
-        for (TalkDto t : talks) {
-            byFormat.put(t.format, byFormat.getOrDefault(t.format, 0) + 1);
-            byLevel.put(t.level, byLevel.getOrDefault(t.level, 0) + 1);
-            byStatus.put(t.status, byStatus.getOrDefault(t.status, 0) + 1);
-            speakersWithTalks.add(t.speakerId);
-            minutes += t.durationMinutes;
-            if (t.averageRating != null) {
-                ratingSum += t.averageRating;
+        for (TalkView t : talks) {
+            byFormat.put(t.format(), byFormat.getOrDefault(t.format(), 0) + 1);
+            byLevel.put(t.level(), byLevel.getOrDefault(t.level(), 0) + 1);
+            byStatus.put(t.status(), byStatus.getOrDefault(t.status(), 0) + 1);
+            speakersWithTalks.add(t.speakerId());
+            minutes += t.durationMinutes();
+            if (t.averageRating() != null) {
+                ratingSum += t.averageRating();
                 rated++;
             }
         }

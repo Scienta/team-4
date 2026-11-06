@@ -10,5 +10,4 @@ public class TalkForm {
     public String format;
     public String level;
     public Long speakerId;
-    // public Integer durationMinutes;  // clients must not choose the duration any more
 }

@@ -44,10 +44,10 @@ and so is a concurrent withdrawal or decision (they lock the same row). Backstop
 
 ## Code
 
-`WorkshopRules` is plain Java (no Spring, no database): given the talk's format, its `TalkStatus`, how
-many are registered and whether the email is already there, it either allows the registration or throws
-`Refused` with a reason (NOT_A_WORKSHOP / NOT_OPEN / DUPLICATE / FULL). `WorkshopService` locks, loads,
-asks the rules, inserts, and maps every reason to 409.
+`WorkshopRules` is plain Java (no Spring, no database): given the `Talk`, how many are registered and
+whether the email is already there, it either allows the registration or throws `Refused` (NOT_ALLOWED,
+so 409, with a message per case: not a workshop, not accepted, already registered, full).
+`WorkshopService` locks, loads, asks the rules and inserts; `ApiErrors` turns the refusal into the 409.
 
 ## Storage
 

@@ -45,7 +45,7 @@ public class SpeakerController {
     }
 
     @GetMapping("/{id}/talks")
-    public List<TalkDto> talks(@PathVariable Long id) {
+    public List<TalkView> talks(@PathVariable Long id) {
         return talks.getTalksForSpeaker(id);
     }
 

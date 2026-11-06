@@ -19,28 +19,24 @@ public class RatingDao {
     /**
      * Insert or replace the reviewer's rating. One statement, so two clicks at once can't make two rows.
      */
-    public void save(long talkId, long reviewerId, int score, String ratedAt) {
+    public void save(long talkId, long reviewerId, Score score, String ratedAt) {
         jdbc.update("INSERT INTO rating (talk_id, reviewer_id, score, rated_at) VALUES (?, ?, ?, ?) "
                 + "ON CONFLICT (talk_id, reviewer_id) DO UPDATE SET score = excluded.score, rated_at = excluded.rated_at",
-                talkId, reviewerId, score, ratedAt);
-    }
-
-    /** How many ratings a talk has and the sum of their scores. */
-    public record Stats(int count, long total) {
+                talkId, reviewerId, score.value(), ratedAt);
     }
 
     /**
-     * The rating stats of the given talks, in one query. Talks without ratings are left out.
+     * The rating summaries of the given talks, in one query. Talks without ratings are left out.
      */
-    public Map<Long, Stats> stats(Collection<Long> talkIds) {
-        Map<Long, Stats> stats = new HashMap<>();
+    public Map<Long, RatingSummary> summaries(Collection<Long> talkIds) {
+        Map<Long, RatingSummary> stats = new HashMap<>();
         if (talkIds.isEmpty()) {
             return stats;
         }
         jdbc.query("SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating WHERE talk_id = ANY(?) GROUP BY talk_id",
                 ps -> ps.setArray(1, ps.getConnection().createArrayOf("bigint", talkIds.toArray())),
                 rs -> {
-                    stats.put(rs.getLong("talk_id"), new Stats(rs.getInt("cnt"), rs.getLong("total")));
+                    stats.put(rs.getLong("talk_id"), new RatingSummary(rs.getInt("cnt"), rs.getLong("total")));
                 });
         return stats;
     }
@@ -50,8 +46,4 @@ public class RatingDao {
         Integer n = jdbc.queryForObject("SELECT COUNT(DISTINCT reviewer_id) FROM rating WHERE talk_id = ?", Integer.class, talkId);
         return n == null ? 0 : n;
     }
-
-    // public double average(long talkId) {
-    //     return jdbc.queryForObject("SELECT AVG(score) FROM rating WHERE talk_id = ?", Double.class, talkId);
-    // }
 }
