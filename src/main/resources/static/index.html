@@ -130,14 +130,20 @@
     </div>
     <p class="msg" id="list-msg" role="status"></p>
     <ol class="talks" id="talks"></ol>
+    <button id="more" type="button" hidden>Vis flere</button>
   </section>
 </main>
 
 <script>
   const FORMATS = { LIGHTNING_10: "Lyntale", LIGHTNING_20: "Lyntale", PRESENTATION: "Presentasjon", WORKSHOP: "Workshop" };
   const LEVELS = { BEGINNER: "Nybegynner", INTERMEDIATE: "Middels", ADVANCED: "Avansert" };
+  const PAGE = 50;          // talks rendered per "Vis flere"
+  const MAX_LOOKUPS = 4;    // speaker lookups in flight at once, so a long list can't flood the service
   const speakers = new Map();
   let sort = "";
+  let talks = [];
+  let shown = 0;
+  let loadId = 0;
 
   async function api(method, path, body) {
     const res = await fetch(path, {
@@ -155,9 +161,25 @@
     el.classList.toggle("error", !!isError);
   }
 
+  const lookups = [];
+  let inFlight = 0;
+  function limited(task) {
+    return new Promise((resolve, reject) => {
+      lookups.push({ task, resolve, reject });
+      pump();
+    });
+  }
+  function pump() {
+    while (inFlight < MAX_LOOKUPS && lookups.length) {
+      const { task, resolve, reject } = lookups.shift();
+      inFlight++;
+      task().then(resolve, reject).finally(() => { inFlight--; pump(); });
+    }
+  }
+
   function speakerName(id) {
     if (!speakers.has(id)) {
-      speakers.set(id, api("GET", `/speakers/${id}`).then(s => s.name).catch(() => `#${id}`));
+      speakers.set(id, limited(() => api("GET", `/speakers/${id}`)).then(s => s.name).catch(() => `#${id}`));
     }
     return speakers.get(id);
   }
@@ -169,20 +191,36 @@
   }
 
   async function loadTalks() {
+    const id = ++loadId;
     const list = document.getElementById("talks");
     const msg = document.getElementById("list-msg");
+    list.setAttribute("aria-busy", "true");
+    show(msg, "Henter foredrag …");
     try {
-      const talks = await api("GET", sort ? `/talks?sort=${sort}` : "/talks");
+      const result = await api("GET", sort ? `/talks?sort=${sort}` : "/talks");
+      if (id !== loadId) return; // a newer load (another sort) started meanwhile
+      talks = result;
+      shown = 0;
       list.replaceChildren();
       show(msg, "");
       if (!talks.length) {
         list.append(el("li", { className: "empty", textContent: "Ingen foredrag ennå. Send inn det første i skjemaet." }));
-        return;
       }
-      for (const t of talks) list.append(renderTalk(t));
+      showMore();
     } catch (e) {
-      show(msg, `Kunne ikke hente foredrag: ${e.message}`, true);
+      if (id === loadId) show(msg, `Kunne ikke hente foredrag: ${e.message}`, true);
+    } finally {
+      if (id === loadId) list.removeAttribute("aria-busy");
     }
+  }
+
+  function showMore() {
+    const list = document.getElementById("talks");
+    for (const t of talks.slice(shown, shown + PAGE)) list.append(renderTalk(t));
+    shown = Math.min(talks.length, shown + PAGE);
+    const more = document.getElementById("more");
+    more.hidden = shown >= talks.length;
+    more.textContent = `Vis flere (viser ${shown} av ${talks.length})`;
   }
 
   function renderTalk(t) {
@@ -203,12 +241,14 @@
       rate.append(el("button", { type: "button", textContent: s, onclick: () => rateTalk(t.id, s) }));
     }
 
-    return el("li", { className: "talk" },
+    const row = el("li", { className: "talk" },
       el("h3", { textContent: t.title }),
       el("p", { className: "meta" },
         who, `, ${FORMATS[t.format] || t.format} ${t.durationMinutes} min, ${LEVELS[t.level] || t.level}`),
       bar,
       el("div", { className: "footer" }, score, rate));
+    row.dataset.id = t.id;
+    return row;
   }
 
   async function rateTalk(id, score) {
@@ -216,7 +256,15 @@
     const msg = document.getElementById("list-msg");
     try {
       await api("PUT", `/talks/${id}/ratings/${reviewer}`, { score });
-      await loadTalks();
+      // refresh just this talk: reloading the whole list is slow and loses the reader's place
+      const fresh = await api("GET", `/talks/${id}`);
+      talks = talks.map(t => (t.id === id ? fresh : t));
+      const old = document.querySelector(`#talks li[data-id="${id}"]`);
+      if (old) {
+        const row = renderTalk(fresh);
+        old.replaceWith(row);
+        row.querySelectorAll(".rate button")[score - 1].focus();
+      }
       show(msg, `Karakter ${score} lagret.`);
     } catch (e) {
       show(msg, `Kunne ikke lagre karakteren: ${e.message}`, true);
@@ -256,6 +304,8 @@
     document.querySelectorAll("[data-sort]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
     loadTalks();
   }));
+
+  document.getElementById("more").addEventListener("click", showMore);
 
   loadTalks();
 </script>
