@@ -18,8 +18,8 @@ import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 /**
- * Logs one line per request: method, path and query, status, duration, and the request and response bodies
- * (truncated). The harness's checks are only visible in the container logs through this.
+ * Logs one line per request: method, path and query, status, duration, the caller (X-Forwarded-For or the socket
+ * address, and the User-Agent), and the request and response bodies (truncated). The harness's checks are only visible in the container logs through this.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -43,9 +43,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         } finally {
             long ms = (System.nanoTime() - started) / 1_000_000;
             String query = request.getQueryString() == null ? "" : "?" + request.getQueryString();
-            String line = String.format("%s %s%s -> %d (%d ms) contentType=%s req=%s res=%s",
+            String line = String.format("%s %s%s -> %d (%d ms) from=%s ua=\"%s\" contentType=%s req=%s res=%s",
                     request.getMethod(), request.getRequestURI(), query,
-                    failure == null ? res.getStatus() : 500, ms, request.getContentType(),
+                    failure == null ? res.getStatus() : 500, ms, caller(request), header(request, "User-Agent"),
+                    request.getContentType(),
                     body(req.getContentAsByteArray()), body(res.getContentAsByteArray()));
             if (failure == null) {
                 log.info(line);
@@ -61,6 +62,22 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilterErrorDispatch() {
         return false;
+    }
+
+    /** The client: the proxy's X-Forwarded-For if there is one (the platform terminates TLS), else the socket. */
+    static String caller(HttpServletRequest request) {
+        String forwarded = header(request, "X-Forwarded-For");
+        return forwarded.equals("-") ? request.getRemoteAddr() : forwarded;
+    }
+
+    /** A header for the log line: one line (no injected log lines), at most 200 characters, "-" if absent. */
+    static String header(HttpServletRequest request, String name) {
+        String value = request.getHeader(name);
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        value = value.replaceAll("\\s*[\\r\\n]+\\s*", " ").replace("\"", "'");
+        return value.length() > 200 ? value.substring(0, 200) + "…" : value;
     }
 
     static String body(byte[] bytes) {
