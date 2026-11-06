@@ -73,9 +73,9 @@ final class FakeDaos {
         public Map<Long, String> names(Collection<Long> ids) {
             Map<Long, String> names = new LinkedHashMap<>();
             for (Long id : ids) {
-                Map<String, Object> row = rows.get(id);
+                Speaker row = rows.get(id);
                 if (row != null) {
-                    names.put(id, (String) row.get("name"));
+                    names.put(id, row.name());
                 }
             }
             return names;
