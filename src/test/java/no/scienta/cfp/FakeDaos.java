@@ -1,6 +1,7 @@
 package no.scienta.cfp;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,6 +68,18 @@ final class FakeDaos {
             }
             rows.put(id, row(id, name, email, bio));
             return 1;
+        }
+
+        @Override
+        public Map<Long, String> names(Collection<Long> ids) {
+            Map<Long, String> names = new LinkedHashMap<>();
+            for (Long id : ids) {
+                Map<String, Object> row = rows.get(id);
+                if (row != null) {
+                    names.put(id, (String) row.get("name"));
+                }
+            }
+            return names;
         }
 
         @Override
@@ -182,11 +195,14 @@ final class FakeDaos {
         }
 
         @Override
-        public Map<String, Object> stats(long talkId) {
-            Map<Long, Integer> forTalk = scores.getOrDefault(talkId, new LinkedHashMap<>());
-            Map<String, Object> stats = new LinkedHashMap<>();
-            stats.put("cnt", forTalk.size());
-            stats.put("total", forTalk.values().stream().mapToLong(Integer::longValue).sum());
+        public Map<Long, Stats> stats(Collection<Long> talkIds) {
+            Map<Long, Stats> stats = new LinkedHashMap<>();
+            for (Long talkId : talkIds) {
+                Map<Long, Integer> forTalk = scores.get(talkId);
+                if (forTalk != null && !forTalk.isEmpty()) {
+                    stats.put(talkId, new Stats(forTalk.size(), forTalk.values().stream().mapToLong(Integer::longValue).sum()));
+                }
+            }
             return stats;
         }
     }
@@ -202,6 +218,18 @@ final class FakeDaos {
         @Override
         public List<Long> findByTalk(long talkId) {
             return new ArrayList<>(rows.getOrDefault(talkId, new ArrayList<>()));
+        }
+
+        @Override
+        public Map<Long, List<Long>> findByTalks(Collection<Long> talkIds) {
+            Map<Long, List<Long>> result = new LinkedHashMap<>();
+            for (Long talkId : talkIds) {
+                List<Long> list = rows.get(talkId);
+                if (list != null && !list.isEmpty()) {
+                    result.put(talkId, new ArrayList<>(list));
+                }
+            }
+            return result;
         }
 
         @Override
