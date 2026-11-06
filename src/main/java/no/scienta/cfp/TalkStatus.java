@@ -28,7 +28,7 @@ sealed interface TalkStatus {
     sealed interface Undecided extends TalkStatus {
         default Accepted accept(int reviewers) {
             if (reviewers < MIN_REVIEWERS_TO_ACCEPT) {
-                throw new Refused(Reason.NOT_ALLOWED,
+                throw Refused.notAllowed(
                         "a talk needs ratings from at least " + MIN_REVIEWERS_TO_ACCEPT + " reviewers to be accepted");
             }
             return new Accepted();
@@ -107,7 +107,7 @@ sealed interface TalkStatus {
                     return d;
                 }
             }
-            throw new Refused(Reason.INVALID, "status must be one of ACCEPTED, REJECTED, WAITLISTED");
+            throw Refused.invalid("status must be one of ACCEPTED, REJECTED, WAITLISTED");
         }
     }
 
@@ -133,7 +133,7 @@ sealed interface TalkStatus {
     /** Speaker {@code requester} withdraws a talk whose main speaker is {@code owner}. Nobody else may, in any state. */
     default Withdrawn withdraw(long owner, long requester) {
         if (owner != requester) {
-            throw new Refused(Reason.NOT_THE_SPEAKER, "only the talk's speaker can withdraw it");
+            throw Refused.notPermitted("only the talk's speaker can withdraw it");
         }
         return switch (this) {
             case Withdrawable w -> w.withdraw();
@@ -143,20 +143,6 @@ sealed interface TalkStatus {
     }
 
     private Refused notAllowed(String what) {
-        return new Refused(Reason.NOT_ALLOWED, "a " + name() + " talk can't " + what);
-    }
-
-    // ------------------------------------------------------------ refusals
-
-    /** Why a request was refused. The caller maps it to a response. */
-    enum Reason { INVALID, NOT_THE_SPEAKER, NOT_ALLOWED }
-
-    final class Refused extends RuntimeException {
-        final Reason reason;
-
-        Refused(Reason reason, String message) {
-            super(message);
-            this.reason = reason;
-        }
+        return Refused.notAllowed("a " + name() + " talk can't " + what);
     }
 }

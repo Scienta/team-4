@@ -10,7 +10,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import no.scienta.cfp.TalkStatus.Decision;
-import no.scienta.cfp.TalkStatus.Reason;
 
 /** The talk status state machine on its own: no Spring, no database (workflow/specs/acceptance.md). */
 class TalkStatusTest {
@@ -27,8 +26,8 @@ class TalkStatusTest {
 
     @Test
     void acceptNeedsTwoReviewers() {
-        assertRefused(Reason.NOT_ALLOWED, () -> new TalkStatus.Submitted().accept(1));
-        assertRefused(Reason.NOT_ALLOWED, () -> new TalkStatus.Waitlisted().accept(0));
+        assertRefused(Refused.Kind.NOT_ALLOWED, () -> new TalkStatus.Submitted().accept(1));
+        assertRefused(Refused.Kind.NOT_ALLOWED, () -> new TalkStatus.Waitlisted().accept(0));
     }
 
     // ------------------------------------------------------------ decisions from requests
@@ -63,14 +62,14 @@ class TalkStatusTest {
             "WITHDRAWN,  WAITLISTED, 2",
     })
     void refusedDecisions(String from, Decision to, int reviewers) {
-        assertRefused(Reason.NOT_ALLOWED, () -> TalkStatus.of(from).decide(to, reviewers));
+        assertRefused(Refused.Kind.NOT_ALLOWED, () -> TalkStatus.of(from).decide(to, reviewers));
     }
 
     @Test
     void parsesDecisions() {
         assertEquals(Decision.REJECTED, Decision.parse("REJECTED"));
         for (Object bad : new Object[] {"SUBMITTED", "WITHDRAWN", "accepted", "MAYBE", "", 3, null}) {
-            assertRefused(Reason.INVALID, () -> Decision.parse(bad));
+            assertRefused(Refused.Kind.INVALID, () -> Decision.parse(bad));
         }
     }
 
@@ -85,14 +84,14 @@ class TalkStatusTest {
     @ParameterizedTest
     @ValueSource(strings = {"REJECTED", "WITHDRAWN"})
     void cannotWithdrawRejectedOrWithdrawn(String from) {
-        assertRefused(Reason.NOT_ALLOWED, () -> TalkStatus.of(from).withdraw(7, 7));
+        assertRefused(Refused.Kind.NOT_ALLOWED, () -> TalkStatus.of(from).withdraw(7, 7));
     }
 
     @Test
     void onlyTheOwnerCanWithdraw() {
-        assertRefused(Reason.NOT_THE_SPEAKER, () -> new TalkStatus.Submitted().withdraw(7, 8));
+        assertRefused(Refused.Kind.NOT_PERMITTED, () -> new TalkStatus.Submitted().withdraw(7, 8));
         // Somebody else gets 403 even when the talk couldn't be withdrawn anyway.
-        assertRefused(Reason.NOT_THE_SPEAKER, () -> new TalkStatus.Rejected().withdraw(7, 8));
+        assertRefused(Refused.Kind.NOT_PERMITTED, () -> new TalkStatus.Rejected().withdraw(7, 8));
     }
 
     // ------------------------------------------------------------ storage names
@@ -108,8 +107,7 @@ class TalkStatusTest {
         assertThrows(IllegalStateException.class, () -> TalkStatus.of("PENDING"));
     }
 
-    private static void assertRefused(Reason reason, Runnable action) {
-        TalkStatus.Refused e = assertThrows(TalkStatus.Refused.class, action::run);
-        assertEquals(reason, e.reason);
+    private static void assertRefused(Refused.Kind kind, Runnable action) {
+        assertEquals(kind, assertThrows(Refused.class, action::run).kind);
     }
 }

@@ -107,7 +107,7 @@ public class Utils {
 
     /**
      * Cuts a rating average off at one decimal (CFP-61): 4.25 gives 4.2. Used by /admin/stats only; a talk's own
-     * average rounds halves up instead (see TalkService.calculateAverage).
+     * average rounds halves up instead (see RatingSummary.average).
      */
     public static double roundRating(double avg) {
         return Math.floor(avg * 10) / 10.0;

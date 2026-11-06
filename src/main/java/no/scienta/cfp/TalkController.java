@@ -32,38 +32,38 @@ public class TalkController {
 
     @PostMapping("/talks")
     @ResponseStatus(HttpStatus.CREATED)
-    public TalkDto submit(@RequestBody TalkForm form) {
+    public TalkView submit(@RequestBody TalkForm form) {
         return talks.submitTalk(form);
     }
 
     @GetMapping("/talks/{id}")
-    public TalkDto get(@PathVariable Long id) {
+    public TalkView get(@PathVariable Long id) {
         return talks.getTalk(id);
     }
 
     @GetMapping("/talks")
-    public List<TalkDto> list(@RequestParam(required = false) String sort,
+    public List<TalkView> list(@RequestParam(required = false) String sort,
                               @RequestParam(required = false) Long speakerId) {
         return talks.listTalks(sort, speakerId);
     }
 
     @PutMapping("/talks/{id}/co-speakers/{speakerId}")
-    public TalkDto addCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
+    public TalkView addCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
         return coSpeakers.addCoSpeaker(id, speakerId);
     }
 
     @DeleteMapping("/talks/{id}/co-speakers/{speakerId}")
-    public TalkDto removeCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
+    public TalkView removeCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
         return coSpeakers.removeCoSpeaker(id, speakerId);
     }
 
     @PutMapping("/talks/{id}/status")
-    public TalkDto decide(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+    public TalkView decide(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
         return acceptance.decide(id, body);
     }
 
     @PostMapping("/talks/{id}/withdraw")
-    public TalkDto withdraw(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+    public TalkView withdraw(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
         return acceptance.withdraw(id, body);
     }
 

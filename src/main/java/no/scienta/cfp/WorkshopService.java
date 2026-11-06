@@ -6,12 +6,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-/** Registering for workshops (rules in WorkshopRules, workflow/specs/workshop-registration.md). */
+/** Registering for workshops (rules in {@link WorkshopRules}, workflow/specs/workshop-registration.md). */
 @Service
 public class WorkshopService {
 
@@ -34,23 +32,18 @@ public class WorkshopService {
         String name = requireText(body, "name");
         String email = requireText(body, "email");
         if (!Utils.isValidEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
+            throw Refused.invalid("invalid email");
         }
-        TalkDto talk = talkDao.lock(talkId);
-        if (talk == null) {
-            throw notFound();
-        }
+        Talk talk = talkDao.lock(talkId).orElseThrow(WorkshopService::notFound);
+        WorkshopRules.register(talk, registrations.count(talkId), registrations.emailRegistered(talkId, email));
+        Registration r;
         try {
-            WorkshopRules.register(talk.format, TalkStatus.of(talk.status),
-                    registrations.count(talkId), registrations.emailRegistered(talkId, email));
-            Registration r = registrations.insert(talkId, name, email);
-            log.info("workshop " + talkId + ": registration " + r.id());
-            return r;
-        } catch (WorkshopRules.Refused e) {
-            throw refusal(e);
+            r = registrations.insert(talkId, name, email);
         } catch (DuplicateKeyException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "this email is already registered for the workshop");
+            throw Refused.notAllowed(WorkshopRules.ALREADY_REGISTERED);
         }
+        log.info("workshop " + talkId + ": registration " + r.id());
+        return r;
     }
 
     /** Any existing talk: a non-workshop just has none (harness check-2 rejected 404 for it, tick 89). */
@@ -64,20 +57,12 @@ public class WorkshopService {
     private static String requireText(Map<String, Object> body, String field) {
         Object value = body == null ? null : body.get(field);
         if (!(value instanceof String s) || Utils.isEmpty(s)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " is required");
+            throw Refused.invalid(field + " is required");
         }
         return s;
     }
 
-    private static ResponseStatusException notFound() {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, "workshop not found");
-    }
-
-    private static ResponseStatusException refusal(WorkshopRules.Refused e) {
-        HttpStatus status = switch (e.reason) {
-            // NOT_A_WORKSHOP was 404; harness check-2 rejected that (tick 84).
-            case NOT_A_WORKSHOP, NOT_OPEN, DUPLICATE, FULL -> HttpStatus.CONFLICT;
-        };
-        return new ResponseStatusException(status, e.getMessage());
+    private static Refused notFound() {
+        return Refused.notFound("workshop not found");
     }
 }

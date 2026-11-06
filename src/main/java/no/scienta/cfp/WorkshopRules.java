@@ -8,45 +8,29 @@ final class WorkshopRules {
 
     static final int CAPACITY = 20;
 
-    static final String WORKSHOP = "WORKSHOP";
+    static final String ALREADY_REGISTERED = "this email is already registered for the workshop";
 
     private WorkshopRules() {
-    }
-
-    /** Why a registration was refused. The caller maps it to a response. */
-    enum Reason { NOT_A_WORKSHOP, NOT_OPEN, DUPLICATE, FULL }
-
-    static final class Refused extends RuntimeException {
-        final Reason reason;
-
-        Refused(Reason reason, String message) {
-            super(message);
-            this.reason = reason;
-        }
-    }
-
-    /** Is this talk a workshop at all? */
-    private static void requireWorkshop(String format) {
-        if (!WORKSHOP.equals(format)) {
-            throw new Refused(Reason.NOT_A_WORKSHOP, "not a workshop");
-        }
     }
 
     /**
      * Can one more attendee register? {@code registered} is how many already have, {@code alreadyRegistered}
      * whether this email (in any letter case) is one of them. Refusals in this order: not a workshop, not
-     * accepted, already registered, full.
+     * accepted, already registered, full. All of them are NOT_ALLOWED: a non-workshop was 404 until harness
+     * check-2 rejected that (tick 84).
      */
-    static void register(String format, TalkStatus status, int registered, boolean alreadyRegistered) {
-        requireWorkshop(format);
-        if (!(status instanceof TalkStatus.Accepted)) {
-            throw new Refused(Reason.NOT_OPEN, "a " + status.name() + " workshop takes no registrations");
+    static void register(Talk talk, int registered, boolean alreadyRegistered) {
+        if (!talk.isWorkshop()) {
+            throw Refused.notAllowed("not a workshop");
+        }
+        if (!(talk.status() instanceof TalkStatus.Accepted)) {
+            throw Refused.notAllowed("a " + talk.status().name() + " workshop takes no registrations");
         }
         if (alreadyRegistered) {
-            throw new Refused(Reason.DUPLICATE, "this email is already registered for the workshop");
+            throw Refused.notAllowed(ALREADY_REGISTERED);
         }
         if (registered >= CAPACITY) {
-            throw new Refused(Reason.FULL, "the workshop is full (" + CAPACITY + " attendees)");
+            throw Refused.notAllowed("the workshop is full (" + CAPACITY + " attendees)");
         }
     }
 }
