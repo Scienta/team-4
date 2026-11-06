@@ -70,13 +70,54 @@
   }
   .rate button:hover { background: var(--signal); border-color: var(--signal); }
   .empty { color: var(--slate); padding: 2rem 0; }
-  #reviewer { width: 4.5rem; padding: .25rem .4rem; }
+  #reviewer, #speaker-filter { width: 4.5rem; padding: .25rem .4rem; }
+
+  /* Status: a small tag, colour only as a second cue next to the word. */
+  .status { display: inline-block; font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: .05rem .45rem; border-radius: 3px; border: 1px solid var(--rule); color: var(--slate); margin-left: .5rem; vertical-align: middle; }
+  .status.ACCEPTED { background: #e3f1e6; border-color: #9cc9a6; color: #1f5e2e; }
+  .status.REJECTED, .status.WITHDRAWN { background: #f6e5e4; border-color: #e0b0ac; color: var(--error); }
+  .status.WAITLISTED { background: #fbf2d8; border-color: var(--signal); color: #6b5310; }
+  .talk { cursor: pointer; }
+  .talk:hover h3 { color: var(--fjord); }
+  .talk.chosen { box-shadow: inset 4px 0 0 var(--fjord); padding-left: .75rem; }
+
+  /* The selected talk: everything the committee, speakers and attendees can do to one talk. */
+  #selected { border: 1px solid var(--rule); border-radius: 6px; background: #fff; padding: 1rem 1.25rem; margin-bottom: 2.5rem; }
+  #selected h2 { margin-bottom: .25rem; }
+  #selected .meta { color: var(--slate); font-size: .9rem; margin: 0 0 .5rem; }
+  #selected form { margin: 0; padding: .75rem 0; border-top: 1px solid var(--rule); }
+  #selected form h3 { font-size: .95rem; margin: 0; }
+  #selected button { margin-top: .5rem; }
+  .row { display: flex; gap: .5rem; align-items: end; }
+  .row > * { flex: 1; }
+  .row > button { flex: 0 0 auto; }
+  ul.people, ol.registrations { margin: .4rem 0 0; padding-left: 1.2rem; font-size: .9rem; }
+  ul.people button { margin: 0 0 0 .25rem; padding: 0 .3rem; }
+
+  /* Programme: rooms across, slots down; the long slot is drawn taller, as it is. */
+  .wide { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem 4rem; }
+  table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; }
+  .grid th, .grid td { border: 1px solid var(--rule); padding: .5rem .6rem; text-align: left; vertical-align: top; font-size: .9rem; }
+  .grid th { background: var(--paper); font-weight: 600; }
+  .grid th[scope=row] { width: 8rem; font-variant-numeric: tabular-nums; }
+  .grid tr.long td { height: 5.5rem; }
+  .grid td.free { color: var(--slate); }
+  .grid td button { margin: .25rem 0 0; }
+  #programme-form { display: flex; gap: .75rem; align-items: end; flex-wrap: wrap; margin: 1rem 0 0; }
+  #programme-form > div { min-width: 8rem; }
+  #programme-form > div.talk-pick { flex: 1; min-width: 14rem; }
+  dl.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 1rem; margin: 0 0 1rem; }
+  dl.stats div { background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: .75rem 1rem; }
+  dl.stats dt { color: var(--slate); font-size: .85rem; }
+  dl.stats dd { margin: .2rem 0 0; font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  dl.stats dd small { display: block; font-size: .8rem; font-weight: 400; color: var(--slate); }
 </style>
 </head>
 <body>
 <header>
   <h1>Call for papers</h1>
-  <p>Registrer deg som foredragsholder, send inn opptil tre foredrag, og la programkomiteen gi dem karakter fra 1 til 5.</p>
+  <p>Registrer deg som foredragsholder, send inn opptil tre foredrag med medforedragsholdere, og la programkomiteen gi karakter, ta dem inn og sette dem på programmet. Deltakere melder seg på workshopene.</p>
 </header>
 
 <main>
@@ -115,6 +156,54 @@
       <button type="submit">Send inn foredrag</button>
       <p class="msg" id="talk-msg" role="status"></p>
     </form>
+
+    <section id="selected" aria-labelledby="sel-title" hidden>
+      <h2 id="sel-title"></h2>
+      <p class="meta" id="sel-meta"></p>
+      <p class="msg" id="sel-msg" role="status"></p>
+
+      <form id="decision-form">
+        <h3>Programkomiteens beslutning</h3>
+        <div class="row">
+          <div><label for="d-status">Ny status</label>
+          <select id="d-status" name="status">
+            <option value="ACCEPTED">Akseptert</option>
+            <option value="WAITLISTED">Venteliste</option>
+            <option value="REJECTED">Avslått</option>
+          </select></div>
+          <button type="submit">Lagre</button>
+        </div>
+      </form>
+
+      <form id="co-speaker-form">
+        <h3>Medforedragsholdere</h3>
+        <ul class="people" id="co-speakers"></ul>
+        <div class="row">
+          <div><label for="c-speaker">Foredragsholder-ID</label>
+          <input id="c-speaker" name="speakerId" type="number" min="1" required></div>
+          <button type="submit">Legg til</button>
+        </div>
+      </form>
+
+      <form id="workshop-form" hidden>
+        <h3>Påmelding til workshopen <span id="reg-count"></span></h3>
+        <ol class="registrations" id="registrations"></ol>
+        <label for="w-name">Navn</label>
+        <input id="w-name" name="name" required>
+        <label for="w-email">E-post</label>
+        <input id="w-email" name="email" type="email" required>
+        <button type="submit">Meld på</button>
+      </form>
+
+      <form id="withdraw-form">
+        <h3>Trekk foredraget</h3>
+        <div class="row">
+          <div><label for="w-speaker">Jeg er foredragsholder-ID</label>
+          <input id="w-speaker" name="speakerId" type="number" min="1" required></div>
+          <button type="submit">Trekk</button>
+        </div>
+      </form>
+    </section>
   </section>
 
   <section aria-labelledby="talks-heading">
@@ -124,6 +213,8 @@
         <span>Sorter:</span>
         <button class="quiet" data-sort="" aria-pressed="true">Innsendt</button>
         <button class="quiet" data-sort="rating" aria-pressed="false">Karakter</button>
+        <label for="speaker-filter" style="margin:0 0 0 .75rem;font-weight:400">Foredragsholder</label>
+        <input id="speaker-filter" type="number" min="1" placeholder="alle">
         <label for="reviewer" style="margin:0 0 0 .75rem;font-weight:400">Jeg er reviewer</label>
         <input id="reviewer" type="number" min="1" value="1">
       </div>
@@ -134,25 +225,90 @@
   </section>
 </main>
 
+<section class="wide" aria-labelledby="programme-heading">
+  <div class="list-head">
+    <h2 id="programme-heading">Program</h2>
+    <button class="quiet" type="button" id="programme-refresh">Oppdater</button>
+  </div>
+  <p class="msg" id="programme-msg" role="status"></p>
+  <table class="grid" id="programme" aria-busy="true"></table>
+  <form id="programme-form">
+    <div><label for="p-room">Rom</label>
+    <select id="p-room" name="room">
+      <option value="R1">Rom 1</option>
+      <option value="R2">Rom 2</option>
+      <option value="R3">Rom 3</option>
+    </select></div>
+    <div><label for="p-slot">Tid</label>
+    <select id="p-slot" name="slot">
+      <option value="S1" data-start="09:00" data-end="10:00">09:00–10:00</option>
+      <option value="S2" data-start="10:15" data-end="11:15">10:15–11:15</option>
+      <option value="S3" data-start="11:30" data-end="12:30">11:30–12:30</option>
+      <option value="S4" data-start="13:30" data-end="15:30" data-long="true">13:30–15:30 (workshop)</option>
+      <option value="S5" data-start="15:45" data-end="16:45">15:45–16:45</option>
+    </select></div>
+    <div class="talk-pick"><label for="p-talk">Akseptert foredrag</label>
+    <select id="p-talk" name="talkId" required></select></div>
+    <button type="submit">Sett på programmet</button>
+  </form>
+</section>
+
+<section class="wide" aria-labelledby="stats-heading">
+  <div class="list-head">
+    <h2 id="stats-heading">Statistikk</h2>
+    <a href="/admin/talks.csv" download>Last ned alle foredrag (CSV)</a>
+  </div>
+  <dl class="stats" id="stats"></dl>
+</section>
+
 <script>
   const FORMATS = { LIGHTNING_10: "Lyntale", LIGHTNING_20: "Lyntale", PRESENTATION: "Presentasjon", WORKSHOP: "Workshop" };
   const LEVELS = { BEGINNER: "Nybegynner", INTERMEDIATE: "Middels", ADVANCED: "Avansert" };
+  const STATUSES = { SUBMITTED: "Innsendt", WAITLISTED: "Venteliste", ACCEPTED: "Akseptert", REJECTED: "Avslått", WITHDRAWN: "Trukket" };
+  const WORKSHOP_SEATS = 20;
   const PAGE = 50;          // talks rendered per "Vis flere"
-  const MAX_LOOKUPS = 4;    // speaker lookups in flight at once, so a long list can't flood the service
+  const MAX_LOOKUPS = 4;    // lookups in flight at once, so a long list or the programme can't flood the service
   const speakers = new Map();
   let sort = "";
+  let speakerFilter = "";
   let talks = [];
   let shown = 0;
   let loadId = 0;
+  let selected = null;      // the talk shown in the side panel
 
-  async function api(method, path, body) {
+  // What a refusal means, per action, from the decisions in workflow/specs/. The service's error bodies carry no
+  // message, so without these the page could only say "409".
+  const WHY = {
+    rate: { 400: "Karakteren må være 1–5 og reviewer-ID et positivt heltall.", 404: "Foredraget finnes ikke." },
+    decide: { 400: "Ugyldig status.", 404: "Foredraget finnes ikke.",
+      409: "Ikke tillatt nå: et foredrag trenger karakter fra minst to reviewere for å bli akseptert, og venteliste går bare fra innsendt." },
+    withdraw: { 400: "Oppgi foredragsholder-ID.", 403: "Bare hovedforedragsholderen kan trekke foredraget.",
+      404: "Foredraget finnes ikke.", 409: "Et avslått eller allerede trukket foredrag kan ikke trekkes." },
+    addCoSpeaker: { 400: "Hovedforedragsholderen kan ikke også være medforedragsholder.",
+      404: "Fant ingen foredragsholder med den ID-en.", 409: "Et foredrag kan ha høyst to medforedragsholdere." },
+    removeCoSpeaker: { 404: "Er ikke medforedragsholder på dette foredraget." },
+    register: { 400: "Oppgi navn og en gyldig e-postadresse.", 404: "Workshopen finnes ikke.",
+      409: "Påmeldingen er ikke åpen, workshopen er full, eller e-postadressen er allerede påmeldt." },
+    schedule: { 400: "Velg et foredrag som finnes.", 404: "Ukjent rom eller tid.",
+      409: "Går ikke: foredraget må være akseptert og ikke allerede på programmet, ruta må være ledig, en workshop må i den lange tiden (13:30), og ingen foredragsholder kan være i to rom samtidig." },
+    unschedule: { 404: "Ruta er allerede ledig." },
+    speaker: { 400: "Navn og en gyldig e-postadresse må fylles ut, og bio kan være høyst 500 tegn.", 409: "E-postadressen er allerede registrert." },
+    talk: { 400: "Sjekk feltene: tittel, format, nivå og en foredragsholder som finnes.", 409: "Foredragsholderen har allerede sendt inn tre foredrag." },
+  };
+
+  async function api(method, path, body, why) {
     const res = await fetch(path, {
       method,
       headers: body ? { "Content-Type": "application/json" } : {},
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error((data && data.message) || `${res.status} ${res.statusText}`);
+    if (!res.ok) {
+      const reason = (data && data.message) || (why && why[res.status]);
+      const err = new Error(reason ? `${reason} (${res.status})` : `${res.status} ${res.statusText || data?.error || ""}`.trim());
+      err.status = res.status;
+      throw err;
+    }
     return data;
   }
 
@@ -160,6 +316,7 @@
     el.textContent = text;
     el.classList.toggle("error", !!isError);
   }
+  const $ = id => document.getElementById(id);
 
   const lookups = [];
   let inFlight = 0;
@@ -190,23 +347,50 @@
     return node;
   }
 
+  /** A span that shows the speaker's id until their name arrives. */
+  function nameOf(id) {
+    const span = el("span", { textContent: `#${id}` });
+    speakerName(id).then(n => (span.textContent = n));
+    return span;
+  }
+
+  /** Main speaker, then co-speakers. */
+  function people(t) {
+    const span = el("span", {}, nameOf(t.speakerId));
+    for (const c of t.coSpeakerIds || []) span.append(" og ", nameOf(c));
+    return span;
+  }
+
+  function statusTag(status) {
+    return el("span", { className: `status ${status}`, textContent: STATUSES[status] || status });
+  }
+
+  // ------------------------------------------------------------ talk list
+
   async function loadTalks() {
     const id = ++loadId;
-    const list = document.getElementById("talks");
-    const msg = document.getElementById("list-msg");
+    const list = $("talks");
+    const msg = $("list-msg");
     list.setAttribute("aria-busy", "true");
     show(msg, "Henter foredrag …");
     try {
-      const result = await api("GET", sort ? `/talks?sort=${sort}` : "/talks");
-      if (id !== loadId) return; // a newer load (another sort) started meanwhile
+      const params = new URLSearchParams();
+      if (sort) params.set("sort", sort);
+      if (speakerFilter) params.set("speakerId", speakerFilter);
+      const query = params.toString();
+      const result = await api("GET", query ? `/talks?${query}` : "/talks");
+      if (id !== loadId) return; // a newer load (another sort or filter) started meanwhile
       talks = result;
       shown = 0;
       list.replaceChildren();
       show(msg, "");
       if (!talks.length) {
-        list.append(el("li", { className: "empty", textContent: "Ingen foredrag ennå. Send inn det første i skjemaet." }));
+        list.append(el("li", { className: "empty", textContent: speakerFilter
+          ? "Ingen foredrag for denne foredragsholderen."
+          : "Ingen foredrag ennå. Send inn det første i skjemaet." }));
       }
       showMore();
+      fillTalkPicker();
     } catch (e) {
       if (id === loadId) show(msg, `Kunne ikke hente foredrag: ${e.message}`, true);
     } finally {
@@ -215,18 +399,15 @@
   }
 
   function showMore() {
-    const list = document.getElementById("talks");
+    const list = $("talks");
     for (const t of talks.slice(shown, shown + PAGE)) list.append(renderTalk(t));
     shown = Math.min(talks.length, shown + PAGE);
-    const more = document.getElementById("more");
+    const more = $("more");
     more.hidden = shown >= talks.length;
     more.textContent = `Vis flere (viser ${shown} av ${talks.length})`;
   }
 
   function renderTalk(t) {
-    const who = el("span", { textContent: `#${t.speakerId}` });
-    speakerName(t.speakerId).then(n => (who.textContent = n));
-
     const bar = el("div", { className: "bar", title: `${t.durationMinutes} minutter` });
     const fill = el("span");
     fill.style.width = `${Math.min(100, (t.durationMinutes / 120) * 100)}%`;
@@ -238,62 +419,297 @@
 
     const rate = el("div", { className: "rate", role: "group", ariaLabel: `Gi karakter til ${t.title}` });
     for (let s = 1; s <= 5; s++) {
-      rate.append(el("button", { type: "button", textContent: s, onclick: () => rateTalk(t.id, s) }));
+      rate.append(el("button", { type: "button", textContent: s, onclick: ev => { ev.stopPropagation(); rateTalk(t.id, s); } }));
     }
 
-    const row = el("li", { className: "talk" },
-      el("h3", { textContent: t.title }),
+    const details = el("button", { type: "button", className: "quiet", textContent: "Detaljer",
+      ariaLabel: `Detaljer om ${t.title}`, onclick: ev => { ev.stopPropagation(); select(t); } });
+
+    const row = el("li", { className: "talk", onclick: () => select(t) },
+      el("h3", {}, t.title, statusTag(t.status)),
       el("p", { className: "meta" },
-        who, `, ${FORMATS[t.format] || t.format} ${t.durationMinutes} min, ${LEVELS[t.level] || t.level}`),
+        people(t), `, ${FORMATS[t.format] || t.format} ${t.durationMinutes} min, ${LEVELS[t.level] || t.level}`),
       bar,
-      el("div", { className: "footer" }, score, rate));
+      el("div", { className: "footer" }, score, rate, details));
     row.dataset.id = t.id;
+    if (selected && selected.id === t.id) row.classList.add("chosen");
+    return row;
+  }
+
+  /** Puts a fresh copy of a talk into the list and, if it's the selected one, the side panel. */
+  function replaceTalk(fresh) {
+    talks = talks.map(t => (t.id === fresh.id ? fresh : t));
+    const old = document.querySelector(`#talks li[data-id="${fresh.id}"]`);
+    let row = null;
+    if (old) {
+      row = renderTalk(fresh);
+      old.replaceWith(row);
+    }
+    if (selected && selected.id === fresh.id) renderSelected(fresh);
+    fillTalkPicker();
     return row;
   }
 
   async function rateTalk(id, score) {
-    const reviewer = document.getElementById("reviewer").value;
-    const msg = document.getElementById("list-msg");
+    const reviewer = $("reviewer").value;
+    const msg = $("list-msg");
     try {
-      await api("PUT", `/talks/${id}/ratings/${reviewer}`, { score });
+      await api("PUT", `/talks/${id}/ratings/${reviewer}`, { score }, WHY.rate);
       // refresh just this talk: reloading the whole list is slow and loses the reader's place
-      const fresh = await api("GET", `/talks/${id}`);
-      talks = talks.map(t => (t.id === id ? fresh : t));
-      const old = document.querySelector(`#talks li[data-id="${id}"]`);
-      if (old) {
-        const row = renderTalk(fresh);
-        old.replaceWith(row);
-        row.querySelectorAll(".rate button")[score - 1].focus();
-      }
+      const row = replaceTalk(await api("GET", `/talks/${id}`));
+      if (row) row.querySelectorAll(".rate button")[score - 1].focus();
       show(msg, `Karakter ${score} lagret.`);
     } catch (e) {
       show(msg, `Kunne ikke lagre karakteren: ${e.message}`, true);
     }
   }
 
-  document.getElementById("speaker-form").addEventListener("submit", async ev => {
-    ev.preventDefault();
-    const f = ev.target, msg = document.getElementById("speaker-msg");
+  // ------------------------------------------------------------ the selected talk
+
+  function select(t) {
+    document.querySelectorAll("#talks li.chosen").forEach(li => li.classList.remove("chosen"));
+    const row = document.querySelector(`#talks li[data-id="${t.id}"]`);
+    if (row) row.classList.add("chosen");
+    show($("sel-msg"), "");
+    renderSelected(t);
+    const panel = $("selected");
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function renderSelected(t) {
+    selected = t;
+    $("sel-title").replaceChildren(t.title, statusTag(t.status));
+    $("sel-meta").replaceChildren(`#${t.id}, ${FORMATS[t.format] || t.format} ${t.durationMinutes} min, av `, nameOf(t.speakerId));
+
+    // only offer what the talk's status allows (workflow/specs/acceptance.md); the server still has the last word
+    const undecided = t.status === "SUBMITTED" || t.status === "WAITLISTED";
+    $("decision-form").hidden = !undecided;
+    $("withdraw-form").hidden = !(undecided || t.status === "ACCEPTED");
+
+    const list = $("co-speakers");
+    list.replaceChildren();
+    if (!(t.coSpeakerIds || []).length) list.append(el("li", { className: "empty", textContent: "Ingen ennå." }));
+    for (const c of t.coSpeakerIds || []) {
+      list.append(el("li", {}, nameOf(c), ` (#${c})`,
+        el("button", { type: "button", className: "quiet", textContent: "Fjern", ariaLabel: `Fjern medforedragsholder ${c}`,
+          onclick: () => removeCoSpeaker(t.id, c) })));
+    }
+
+    const isWorkshop = t.format === "WORKSHOP";
+    $("workshop-form").hidden = !isWorkshop;
+    if (isWorkshop) loadRegistrations(t);
+  }
+
+  async function loadRegistrations(t) {
+    const list = $("registrations");
     try {
-      const s = await api("POST", "/speakers", { name: f.elements.name.value, email: f.elements.email.value, bio: f.elements.bio.value || null });
+      const regs = await api("GET", `/workshops/${t.id}/registrations`);
+      if (!selected || selected.id !== t.id) return;
+      list.replaceChildren(...regs.map(r => el("li", { textContent: r.name })));
+      $("reg-count").textContent = `(${regs.length} av ${WORKSHOP_SEATS})`;
+      const open = t.status === "ACCEPTED" && regs.length < WORKSHOP_SEATS;
+      $("workshop-form").querySelector("button").disabled = !open;
+      if (!regs.length) {
+        list.append(el("li", { className: "empty", textContent:
+          t.status === "ACCEPTED" ? "Ingen påmeldte ennå." : "Åpner når workshopen er akseptert." }));
+      } else if (!open) {
+        list.append(el("li", { className: "empty", textContent: t.status === "ACCEPTED" ? "Fullt." : "Påmeldingen er stengt." }));
+      }
+    } catch (e) {
+      show($("sel-msg"), `Kunne ikke hente påmeldinger: ${e.message}`, true);
+    }
+  }
+
+  /** Runs a change to the selected talk, then shows the talk as the server now has it. */
+  async function onSelected(action, done) {
+    const t = selected;
+    const msg = $("sel-msg");
+    try {
+      const result = await action(t);
+      replaceTalk(await api("GET", `/talks/${t.id}`));
+      show(msg, typeof done === "function" ? done(result) : done);
+      return true;
+    } catch (e) {
+      show(msg, `Det gikk ikke: ${e.message}`, true);
+      return false;
+    }
+  }
+
+  function removeCoSpeaker(talkId, speakerId) {
+    onSelected(() => api("DELETE", `/talks/${talkId}/co-speakers/${speakerId}`, null, WHY.removeCoSpeaker), "Medforedragsholder fjernet.");
+  }
+
+  $("decision-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const status = ev.target.elements.status.value;
+    if (await onSelected(t => api("PUT", `/talks/${t.id}/status`, { status }, WHY.decide), `Status satt til ${STATUSES[status].toLowerCase()}.`)) {
+      loadStats();
+    }
+  });
+
+  $("withdraw-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const speakerId = Number(ev.target.elements.speakerId.value);
+    if (await onSelected(t => api("POST", `/talks/${t.id}/withdraw`, { speakerId }, WHY.withdraw), "Foredraget er trukket.")) {
+      loadStats();
+      loadProgramme();
+    }
+  });
+
+  $("co-speaker-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const input = ev.target.elements.speakerId;
+    const id = Number(input.value);
+    if (await onSelected(t => api("PUT", `/talks/${t.id}/co-speakers/${id}`, null, WHY.addCoSpeaker), "Medforedragsholder lagt til.")) input.value = "";
+  });
+
+  $("workshop-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    const ok = await onSelected(t => api("POST", `/workshops/${t.id}/registrations`,
+      { name: f.elements.name.value, email: f.elements.email.value }, WHY.register), r => `${r.name} er påmeldt.`);
+    if (ok) { f.elements.name.value = ""; f.elements.email.value = ""; }
+  });
+
+  // ------------------------------------------------------------ programme
+
+  // rooms and slots come from the form's options, so the grid and the form can't disagree (FrontendTest checks them)
+  const ROOMS = [...$("p-room").options].map(o => ({ id: o.value, label: o.textContent }));
+  const SLOTS = [...$("p-slot").options].map(o => ({ id: o.value, start: o.dataset.start, end: o.dataset.end, long: !!o.dataset.long }));
+  const talkCache = new Map();
+  let programmeId = 0;
+
+  function talkById(id) {
+    const known = talks.find(t => t.id === id);
+    if (known) return Promise.resolve(known);
+    if (!talkCache.has(id)) talkCache.set(id, limited(() => api("GET", `/talks/${id}`)).catch(() => null));
+    return talkCache.get(id);
+  }
+
+  async function loadProgramme() {
+    const id = ++programmeId;
+    const table = $("programme");
+    const msg = $("programme-msg");
+    table.setAttribute("aria-busy", "true");
+    talkCache.clear();
+    const head = el("tr", {}, el("th", { textContent: "Tid" }), ...ROOMS.map(r => el("th", { scope: "col", textContent: r.label })));
+    const rows = SLOTS.map(s => {
+      const tr = el("tr", { className: s.long ? "long" : "" }, el("th", { scope: "row", textContent: `${s.start}–${s.end}` }));
+      for (const r of ROOMS) tr.append(el("td", { className: "free", textContent: "…" }));
+      return tr;
+    });
+    table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
+
+    // there is no "whole programme" endpoint: one GET per room and slot, 404 meaning free
+    let failed = 0;
+    await Promise.all(SLOTS.flatMap((s, i) => ROOMS.map(async (r, j) => {
+      const cell = rows[i].children[j + 1];
+      try {
+        const entry = await limited(() => api("GET", `/programme/${r.id}/${s.id}`));
+        const t = await talkById(entry.talkId);
+        cell.className = "";
+        cell.replaceChildren(el("strong", { textContent: t ? t.title : `Foredrag #${entry.talkId}` }));
+        if (t) cell.append(el("br"), people(t));
+        cell.append(el("br"), el("button", { type: "button", className: "quiet", textContent: "Ta av programmet",
+          ariaLabel: `Ta av programmet: ${r.label} ${s.start}`, onclick: () => clearCell(r, s) }));
+      } catch (e) {
+        if (e.status === 404) { cell.textContent = "Ledig"; return; }
+        failed++;
+        cell.textContent = "?";
+      }
+    })));
+    if (id !== programmeId) return;
+    table.removeAttribute("aria-busy");
+    if (failed) show(msg, `Kunne ikke hente ${failed} av rutene.`, true);
+  }
+
+  async function clearCell(room, slot) {
+    const msg = $("programme-msg");
+    try {
+      await api("DELETE", `/programme/${room.id}/${slot.id}`, null, WHY.unschedule);
+      show(msg, `${room.label} kl. ${slot.start} er ledig.`);
+    } catch (e) {
+      show(msg, `Kunne ikke ta av programmet: ${e.message}`, true);
+    }
+    loadProgramme();
+  }
+
+  /** The accepted talks among those loaded, for the programme form. */
+  function fillTalkPicker() {
+    const pick = $("p-talk");
+    const keep = pick.value;
+    const accepted = talks.filter(t => t.status === "ACCEPTED");
+    pick.replaceChildren(...accepted.map(t => el("option", { value: t.id,
+      textContent: `#${t.id} ${t.title} (${FORMATS[t.format] || t.format} ${t.durationMinutes} min)` })));
+    if (!accepted.length) pick.append(el("option", { value: "", textContent: "Ingen aksepterte foredrag i lista" }));
+    if (accepted.some(t => String(t.id) === keep)) pick.value = keep;
+  }
+
+  $("programme-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const f = ev.target, msg = $("programme-msg");
+    const talkId = Number(f.elements.talkId.value);
+    if (!talkId) return show(msg, "Velg et akseptert foredrag.", true);
+    try {
+      const e = await api("PUT", `/programme/${f.elements.room.value}/${f.elements.slot.value}`, { talkId }, WHY.schedule);
+      show(msg, `Foredrag #${e.talkId} satt i ${e.room} kl. ${e.start}–${e.end}.`);
+    } catch (e) {
+      show(msg, `Kunne ikke sette på programmet: ${e.message}`, true);
+    }
+    loadProgramme();
+  });
+
+  $("programme-refresh").addEventListener("click", () => { show($("programme-msg"), ""); loadProgramme(); });
+
+  // ------------------------------------------------------------ statistics
+
+  async function loadStats() {
+    const dl = $("stats");
+    try {
+      const s = await api("GET", "/admin/stats");
+      const tile = (label, value, note) => el("div", {}, el("dt", { textContent: label }),
+        el("dd", {}, String(value ?? "–"), ...(note ? [el("small", { textContent: note })] : [])));
+      const by = (map, names) => Object.entries(map || {}).map(([k, v]) => `${names[k] || k} ${v}`).join(", ");
+      dl.replaceChildren(
+        tile("Foredragsholdere", s.speakers, `${s.speakersWithTalks} med foredrag`),
+        tile("Foredrag", s.talks, by(s.byStatus, STATUSES)),
+        tile("Timer innhold", s.totalHours, by(s.byFormat, { ...FORMATS, LIGHTNING_10: "Lyntale 10", LIGHTNING_20: "Lyntale 20" })),
+        tile("Snittkarakter", s.averageRating == null ? null : Number(s.averageRating).toFixed(1), by(s.byLevel, LEVELS)));
+    } catch (e) {
+      dl.replaceChildren(el("p", { className: "msg error", textContent: `Kunne ikke hente statistikk: ${e.message}` }));
+    }
+  }
+
+  // ------------------------------------------------------------ forms and controls
+
+  $("speaker-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const f = ev.target, msg = $("speaker-msg");
+    try {
+      const s = await api("POST", "/speakers", { name: f.elements.name.value, email: f.elements.email.value, bio: f.elements.bio.value || null }, WHY.speaker);
       show(msg, `Registrert med ID ${s.id}.`);
-      document.getElementById("t-speaker").value = s.id;
+      speakers.set(s.id, Promise.resolve(s.name));
+      $("t-speaker").value = s.id;
       f.reset();
+      loadStats();
     } catch (e) {
       show(msg, `Kunne ikke registrere: ${e.message}`, true);
     }
   });
 
-  document.getElementById("talk-form").addEventListener("submit", async ev => {
+  $("talk-form").addEventListener("submit", async ev => {
     ev.preventDefault();
-    const f = ev.target, msg = document.getElementById("talk-msg");
+    const f = ev.target, msg = $("talk-msg");
     try {
-      await api("POST", "/talks", {
+      const t = await api("POST", "/talks", {
         title: f.elements.title.value, format: f.elements.format.value, level: f.elements.level.value, speakerId: Number(f.elements.speakerId.value),
-      });
+      }, WHY.talk);
       show(msg, "Foredraget er sendt inn.");
       f.elements.title.value = "";
       await loadTalks();
+      select(t);
+      loadStats();
     } catch (e) {
       show(msg, `Kunne ikke sende inn: ${e.message}`, true);
     }
@@ -305,9 +721,16 @@
     loadTalks();
   }));
 
-  document.getElementById("more").addEventListener("click", showMore);
+  let filterTimer;
+  $("speaker-filter").addEventListener("input", ev => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => { speakerFilter = ev.target.value.trim(); loadTalks(); }, 300);
+  });
 
-  loadTalks();
+  $("more").addEventListener("click", showMore);
+
+  loadTalks().then(loadProgramme);
+  loadStats();
 </script>
 </body>
 </html>
