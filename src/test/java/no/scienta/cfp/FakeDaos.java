@@ -14,14 +14,14 @@ import org.springframework.dao.DuplicateKeyException;
 /**
  * In-memory stand-ins for the DAOs, for unit tests of the services without a database. Each fake overrides
  * every public method of its DAO, so the JdbcTemplate (null) is never touched. They model the database rules the
- * service relies on: unique email in any case, the 3-talk limit, one rating per reviewer, co-speakers in order.
+ * service relies on: unique email in any case, the 3-talk limit (co-speaking counts, rejected and withdrawn talks don't), one rating per reviewer, co-speakers in order.
  */
 final class FakeDaos {
 
     final FakeSpeakerDao speakers = new FakeSpeakerDao();
-    final FakeTalkDao talks = new FakeTalkDao();
-    final FakeRatingDao ratings = new FakeRatingDao();
     final FakeCoSpeakerDao coSpeakers = new FakeCoSpeakerDao();
+    final FakeTalkDao talks = new FakeTalkDao(coSpeakers);
+    final FakeRatingDao ratings = new FakeRatingDao();
 
     SpeakerService speakerService() {
         return new SpeakerService(speakers, new NotificationService());
@@ -36,7 +36,7 @@ final class FakeDaos {
     }
 
     CoSpeakerService coSpeakerService() {
-        return new CoSpeakerService(coSpeakers, speakerService(), talkService());
+        return new CoSpeakerService(coSpeakers, talks, speakerService(), talkService());
     }
 
     StatisticsService statisticsService() {
@@ -119,9 +119,11 @@ final class FakeDaos {
     static class FakeTalkDao extends TalkDao {
 
         private final Map<Long, Talk> rows = new LinkedHashMap<>();
+        private final FakeCoSpeakerDao coSpeakers;
 
-        FakeTalkDao() {
+        FakeTalkDao(FakeCoSpeakerDao coSpeakers) {
             super(null);
+            this.coSpeakers = coSpeakers;
         }
 
         @Override
@@ -159,13 +161,22 @@ final class FakeDaos {
 
         @Override
         public Optional<Long> insertIfBelow(int max, Submission s, Instant submittedAt) {
-            if (findBySpeaker(s.speakerId()).size() >= max) {
+            if (lockSpeakerAndCountLiveTalks(s.speakerId()) >= max) {
                 return Optional.empty();
             }
             long id = rows.size() + 1;
             rows.put(id, new Talk(id, s.title(), s.format().name(), s.level().name(), s.speakerId(),
                     s.format().durationMinutes, new TalkStatus.Submitted(), submittedAt));
             return Optional.of(id);
+        }
+
+        /** Like the SQL: live talks the speaker is on as main speaker or co-speaker. */
+        @Override
+        public int lockSpeakerAndCountLiveTalks(long speakerId) {
+            return (int) rows.values().stream()
+                    .filter(t -> t.status().countsTowardsCap())
+                    .filter(t -> t.mainSpeakerId() == speakerId || coSpeakers.findByTalk(t.id()).contains(speakerId))
+                    .count();
         }
     }
 

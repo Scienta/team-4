@@ -128,15 +128,15 @@ class CoSpeakersTest {
     }
 
     @Test
-    void coSpeakingDoesNotCountAsOwnTalks() throws Exception {
+    void coSpeakingIsNotListedAsOwnTalks() throws Exception {
+        // The cap now counts co-speaking (SubmissionCapTest); the listings still show main-speaker talks only.
         String busy = newSpeaker();
-        newTalk(busy);
         newTalk(busy);
         newTalk(busy);
         String other = newTalk(newSpeaker());
 
         assertEquals(200, send("PUT", "/talks/" + other + "/co-speakers/" + busy).statusCode());
-        assertEquals(3, TestApi.countIds(send("GET", "/speakers/" + busy + "/talks").body()));
+        assertEquals(2, TestApi.countIds(send("GET", "/speakers/" + busy + "/talks").body()));
         assertFalse(send("GET", "/talks?speakerId=" + busy).body().contains("\"id\":" + other + ","));
     }
 

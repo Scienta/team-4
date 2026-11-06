@@ -22,6 +22,15 @@ sealed interface TalkStatus {
     /** As stored in {@code talk.status} and shown in the API. */
     String name();
 
+    /**
+     * Does a talk in this state count towards its speakers' cap ({@link Submission#MAX_TALKS_PER_SPEAKER})? Rejected
+     * and withdrawn talks don't (change request: submission cap). {@code TalkDao.LIVE_TALKS_OF_SPEAKER} is the same
+     * rule in SQL.
+     */
+    default boolean countsTowardsCap() {
+        return true;
+    }
+
     // ------------------------------------------------------------ capabilities
 
     /** The committee can still decide. */
@@ -74,11 +83,19 @@ sealed interface TalkStatus {
         public String name() {
             return "REJECTED";
         }
+
+        public boolean countsTowardsCap() {
+            return false;
+        }
     }
 
     record Withdrawn() implements TalkStatus {
         public String name() {
             return "WITHDRAWN";
+        }
+
+        public boolean countsTowardsCap() {
+            return false;
         }
     }
 

@@ -33,7 +33,7 @@ public class TalkService {
         this.notifications = notifications;
     }
 
-    /** Rules in {@link Submission}; the speaker must exist and be under {@link Submission#MAX_TALKS_PER_SPEAKER}. */
+    /** Rules in {@link Submission}; the speaker must exist and be on fewer than {@link Submission#MAX_TALKS_PER_SPEAKER} live talks. */
     @Transactional
     public TalkView submitTalk(TalkForm form) {
         Submission submission = Submission.of(form);

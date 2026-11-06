@@ -62,18 +62,38 @@ public class TalkDao {
     }
 
     /**
-     * Inserts the talk only if its speaker has fewer than {@code max} talks. Returns the new id, or empty.
-     * The speaker row is locked first so two submissions for the same speaker can't both see room under the limit.
+     * How many live talks (not rejected or withdrawn) the speaker is on, as main speaker or co-speaker
+     * (change request: submission cap, workflow/specs/submission-cap-cr.md). Takes the speaker id twice.
+     */
+    private static final String LIVE_TALKS_OF_SPEAKER = "(SELECT COUNT(*) FROM talk t WHERE t.status NOT IN ('REJECTED', 'WITHDRAWN') "
+            + "AND (t.speaker_id = ? OR t.id IN (SELECT c.talk_id FROM talk_co_speaker c WHERE c.speaker_id = ?)))";
+
+    /**
+     * Inserts the talk only if its speaker is on fewer than {@code max} live talks. Locks the speaker's row first, so
+     * concurrent submissions and co-speaker adds for the same speaker are counted one at a time.
      */
     @Transactional
     public Optional<Long> insertIfBelow(int max, Submission s, Instant submittedAt) {
-        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", s.speakerId());
+        lockSpeaker(s.speakerId());
         List<Long> ids = jdbc.queryForList(
                 "INSERT INTO talk (title, format, duration, level, status, speaker_id, submitted_at) "
                         + "SELECT ?, ?, ?, ?, 'SUBMITTED', ?, ? "
-                        + "WHERE (SELECT COUNT(*) FROM talk WHERE speaker_id = ?) < ? RETURNING id",
+                        + "WHERE " + LIVE_TALKS_OF_SPEAKER + " < ? RETURNING id",
                 Long.class, s.title(), s.format().name(), s.format().durationMinutes, s.level().name(), s.speakerId(),
-                submittedAt.toEpochMilli(), s.speakerId(), max);
+                submittedAt.toEpochMilli(), s.speakerId(), s.speakerId(), max);
         return ids.stream().findFirst();
+    }
+
+    /**
+     * Locks the speaker's row and counts the live talks they are on (see {@link #insertIfBelow}). The caller adding a
+     * co-speaker holds the talk's row lock already: lock order is always talk, then speaker.
+     */
+    public int lockSpeakerAndCountLiveTalks(long speakerId) {
+        lockSpeaker(speakerId);
+        return jdbc.queryForObject("SELECT " + LIVE_TALKS_OF_SPEAKER, Integer.class, speakerId, speakerId);
+    }
+
+    private void lockSpeaker(long speakerId) {
+        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", speakerId);
     }
 }

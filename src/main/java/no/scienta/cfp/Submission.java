@@ -8,7 +8,10 @@ import java.util.Arrays;
  */
 record Submission(String title, Format format, Level level, long speakerId) {
 
-    /** Talks spec: a speaker may have at most 3 talks as main speaker. */
+    /**
+     * A speaker may be on at most 3 talks. Since the submission cap change request (workflow/specs/submission-cap-cr.md)
+     * that counts co-speaking too, and leaves out talks that don't {@link TalkStatus#countsTowardsCap()}.
+     */
     static final int MAX_TALKS_PER_SPEAKER = 3;
 
     static Submission of(TalkForm form) {
