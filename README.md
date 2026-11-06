@@ -120,14 +120,14 @@ The service starts on http://localhost:8081. It needs the local Postgres from `d
 
 ## API
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/speakers` | Register a speaker |
-| GET | `/speakers/{id}` | Get a speaker |
-| POST | `/talks` | Submit a talk (max 5 per speaker) |
-| GET | `/talks/{id}` | Get a talk |
-| POST | `/talks/{id}/votes` | Vote for a talk (1-3 stars) |
-| GET | `/talks/top` | Top 10 talks by votes |
+|Method|Path               |Description                      |
+|------|-------------------|---------------------------------|
+|POST  |`/speakers`        |Register a speaker               |
+|GET   |`/speakers/{id}`   |Get a speaker                    |
+|POST  |`/talks`           |Submit a talk (max 5 per speaker)|
+|GET   |`/talks/{id}`      |Get a talk                       |
+|POST  |`/talks/{id}/votes`|Vote for a talk (1-3 stars)      |
+|GET   |`/talks/top`       |Top 10 talks by votes            |
 
 Formats: `LIGHTNING`, `PRESENTATION`, `WORKSHOP`, `KEYNOTE`.
 
@@ -139,7 +139,7 @@ mvn test
 
 ## Deploy
 
-Push to `master`, Jenkins builds and deploys to the test server. Ask Kjetil for access.
+Push to `main`, Jenkins builds and deploys to the test server. Ask Kjetil for access.
 
 ## Contact
 
