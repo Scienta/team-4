@@ -53,14 +53,14 @@ Agent instructions live in `.claude/rules/` (loaded every session), e.g.
 
 ## 3. Claim log
 
-| Feature | Claimed or skipped | Tick | Evidence before claiming |
-|---|---|---|---|
-| Speakers, Talks, Ratings | claimed (base) | 0 | base features, shipped with the app |
-| Co-speakers | claimed | 56 | `CoSpeakersTest` (incl. 6 concurrent adds → exactly 2), `examples/co-speakers.hurl` |
-| Spring Boot 4 | claimed | 73 | upgrade PR by a teammate, full build green |
-| Acceptance | claimed | 77 | `TalkStatusTest` (34 cases, every cell of the transition table), `AcceptanceTest` (15, incl. concurrent accept + reject), all 6 Hurl files green against production at `5444c5c`, logs clean. All 5 checks OK on the first run. |
-| Workshop registration | claimed | 83 | `WorkshopRulesTest` (11), `WorkshopRegistrationTest` (9, incl. a rush of 30 → exactly 20), all 7 Hurl files green against production at `45f178e`, logs clean. check-2 failed, see section 4. |
-| Scheduling | in progress | | |
+|Feature                 |Claimed or skipped|Tick|Evidence before claiming                                                                                                                                                                                                       |
+|------------------------|------------------|----|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|Speakers, Talks, Ratings|claimed (base)    |0   |base features, shipped with the app                                                                                                                                                                                            |
+|Co-speakers             |claimed           |56  |`CoSpeakersTest` (incl. 6 concurrent adds → exactly 2), `examples/co-speakers.hurl`                                                                                                                                            |
+|Spring Boot 4           |claimed           |73  |upgrade PR by a teammate, full build green                                                                                                                                                                                     |
+|Acceptance              |claimed           |77  |`TalkStatusTest` (34 cases, every cell of the transition table), `AcceptanceTest` (15, incl. concurrent accept + reject), all 6 Hurl files green against production at `5444c5c`, logs clean. All 5 checks OK on the first run.|
+|Workshop registration   |claimed           |83  |`WorkshopRulesTest` (11), `WorkshopRegistrationTest` (9, incl. a rush of 30 → exactly 20), all 7 Hurl files green against production at `45f178e`, logs clean. check-2 failed, see section 4.                                  |
+|Scheduling              |in progress       |    |                                                                                                                                                                                                                               |
 
 ## 4. What the harness caught that we didn't
 
@@ -81,6 +81,10 @@ Both misses are the same mistake: answering **404 for something that exists but 
   had just deleted got into a commit; caught by reading `git diff --cached` before pushing, fixed in a follow-up
   commit. A push was rejected because teammates had merged meanwhile; we rebased and re-ran the full build before
   pushing again.
+- **Deploys cost points too.** At ticks 103 and 114 (the deploys of PR #7 and scheduling) checks in five features
+  failed on their very first request, `POST /speakers`, with no response at all (`status: null`): the instance swap,
+  not a bug. Start-up on Scaleway took 18–27 s. We cut start-up with a Java 25 AOT cache built in the Dockerfile
+  (locally at 1 CPU: 4.0 s → 1.8 s), and we batch fixes into fewer deploys. Not every deploy blips: PR #10's didn't.
 
 ## 5. Reusable artifacts
 
