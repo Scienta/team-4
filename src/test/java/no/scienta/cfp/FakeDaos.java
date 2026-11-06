@@ -122,7 +122,7 @@ final class FakeDaos {
         private final FakeCoSpeakerDao coSpeakers;
 
         FakeTalkDao(FakeCoSpeakerDao coSpeakers) {
-            super(null);
+            super(null, null);
             this.coSpeakers = coSpeakers;
         }
 
