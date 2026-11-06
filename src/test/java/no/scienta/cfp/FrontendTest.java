@@ -70,6 +70,47 @@ class FrontendTest {
     }
 
     @Test
+    void thePageHasTheFeaturePanels() throws Exception {
+        String page = send("GET", "/", null).body();
+
+        for (String id : List.of("selected", "decision-form", "withdraw-form", "co-speaker-form",
+                "workshop-form", "registrations", "programme", "programme-form", "stats")) {
+            assertTrue(page.contains("id=\"" + id + "\""), id + " missing");
+        }
+    }
+
+    @Test
+    void everyDecisionOfferedByThePageIsUnderstood() throws Exception {
+        String page = send("GET", "/", null).body();
+        List<String> decisions = options(page, "d-status");
+        assertFalse(decisions.isEmpty(), "no decisions on the page");
+
+        for (String decision : decisions) {
+            long talk = submitTalk();
+            HttpResponse<String> res = send("PUT", "/talks/" + talk + "/status", "{\"status\": \"" + decision + "\"}");
+            // ACCEPTED without ratings is refused with 409; a 400 would mean the value itself isn't understood
+            assertTrue(res.statusCode() != 400, decision + ": " + res.statusCode() + " " + res.body());
+        }
+    }
+
+    @Test
+    void everyRoomAndSlotOfferedByThePageExists() throws Exception {
+        String page = send("GET", "/", null).body();
+        List<String> rooms = options(page, "p-room");
+        List<String> slots = options(page, "p-slot");
+        assertFalse(rooms.isEmpty(), "no rooms on the page");
+        assertFalse(slots.isEmpty(), "no slots on the page");
+
+        for (String room : rooms) {
+            for (String slot : slots) {
+                // an unknown talk in the body is 400; an unknown room or slot in the path would be 404 first
+                HttpResponse<String> res = send("PUT", "/programme/" + room + "/" + slot, "{\"talkId\": 999999999}");
+                assertEquals(400, res.statusCode(), room + "/" + slot + ": " + res.body());
+            }
+        }
+    }
+
+    @Test
     void thePageDoesNotShadowTheApi() throws Exception {
         HttpResponse<String> talks = send("GET", "/talks", null);
 
@@ -94,6 +135,16 @@ class FrontendTest {
     private long registerSpeaker() throws Exception {
         HttpResponse<String> res = send("POST", "/speakers",
                 "{\"name\": \"Grace Hopper\", \"email\": \"grace-" + UUID.randomUUID() + "@example.com\"}");
+        assertEquals(201, res.statusCode(), res.body());
+        Matcher id = Pattern.compile("\"id\":(\\d+)").matcher(res.body());
+        assertTrue(id.find(), res.body());
+        return Long.parseLong(id.group(1));
+    }
+
+    private long submitTalk() throws Exception {
+        long speaker = registerSpeaker();
+        HttpResponse<String> res = send("POST", "/talks", "{\"title\": \"A talk\", \"format\": \"PRESENTATION\", "
+                + "\"level\": \"BEGINNER\", \"speakerId\": " + speaker + "}");
         assertEquals(201, res.statusCode(), res.body());
         Matcher id = Pattern.compile("\"id\":(\\d+)").matcher(res.body());
         assertTrue(id.find(), res.body());
