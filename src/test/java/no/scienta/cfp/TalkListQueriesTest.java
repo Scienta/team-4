@@ -107,7 +107,7 @@ class TalkListQueriesTest {
         talk(4, "Delta", "LIGHTNING_20", 20, "BEGINNER", "REJECTED", 3);
         talk(5, "Epsilon", "PRESENTATION", 45, "ADVANCED", "WAITLISTED", 3);
         ratings(1, 4, 5);          // 4.5 from 2
-        ratings(2, 5, 4, 4, 4);    // 4.25 -> 4.3
+        ratings(2, 5, 4, 4, 4);    // 4.25 (2 decimals since the ratings change request; was shown as 4.3)
         ratings(3, 3);             // 3.0
         ratings(5, 5, 5, 4, 4);    // 4.5 from 4: before talk 1 when sorted
         coSpeaker(1, 3);           // added before 2: order by when added, not by id
@@ -122,7 +122,7 @@ class TalkListQueriesTest {
     void listsAllTalks() throws Exception {
         assertEquals(
                 "[" + json(1, "Alpha", "PRESENTATION", "BEGINNER", 1, 45, "SUBMITTED", "4.5", 2, "3,2")
-                        + "," + json(2, "Beta", "WORKSHOP", "ADVANCED", 2, 120, "ACCEPTED", "4.3", 4, "1")
+                        + "," + json(2, "Beta", "WORKSHOP", "ADVANCED", 2, 120, "ACCEPTED", "4.25", 4, "1")
                         + "," + json(3, "Gamma", "LIGHTNING_10", "INTERMEDIATE", 1, 10, "SUBMITTED", "3.0", 1, "")
                         + "," + json(4, "Delta", "LIGHTNING_20", "BEGINNER", 3, 20, "REJECTED", "null", 0, "")
                         + "," + json(5, "Epsilon", "PRESENTATION", "ADVANCED", 3, 45, "WAITLISTED", "4.5", 4, "4")
@@ -177,7 +177,7 @@ class TalkListQueriesTest {
         assertEquals(200, res.statusCode());
         assertEquals("id;title;format;minutes;level;speaker;status;submitted;rating;ratings\n"
                         + "1;Alpha;Presentation;45;Beginner;Ada Lovelace;SUBMITTED;6. nov. 2025;4,5;2\n"
-                        + "2;Beta;Workshop;120;Advanced;\"Grace; Hopper\";ACCEPTED;6. nov. 2025;4,3;4\n"
+                        + "2;Beta;Workshop;120;Advanced;\"Grace; Hopper\";ACCEPTED;6. nov. 2025;4,25;4\n"
                         + "3;Gamma;Lightning 10;10;Intermediate;Ada Lovelace;SUBMITTED;6. nov. 2025;3,0;1\n"
                         + "4;Delta;Lightning 20;20;Beginner;Linus;REJECTED;6. nov. 2025;;0\n"
                         + "5;Epsilon;Presentation;45;Advanced;Linus;WAITLISTED;6. nov. 2025;4,5;4\n",

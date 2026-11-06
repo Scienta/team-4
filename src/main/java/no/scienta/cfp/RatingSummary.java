@@ -3,19 +3,33 @@ package no.scienta.cfp;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/** How many reviewers rated a talk and the sum of their scores. */
-record RatingSummary(int count, long total) {
+/**
+ * A talk's ratings in short: how many reviewers rated it, the sum of their scores, and the lowest and highest score.
+ * Enough for the average without loading every rating.
+ */
+record RatingSummary(int count, long total, int min, int max) {
 
-    static final RatingSummary NONE = new RatingSummary(0, 0);
+    static final RatingSummary NONE = new RatingSummary(0, 0, 0, 0);
+
+    /** From this many ratings on, the average leaves out one highest and one lowest score (ratings change request). */
+    static final int TRIM_FROM = 5;
 
     /**
-     * Ratings spec: one decimal, halves rounded up (4.25 gives 4.3); null without ratings. Unlike the /admin/stats
-     * average, which is cut off (CFP-61, {@link Utils#roundRating}).
+     * Ratings change request (workflow/specs/ratings-cr.md): from {@link #TRIM_FROM} ratings, exactly one highest and
+     * one lowest score are left out; 2 decimals, ties at the third decimal to the even neighbour (3.125 gives 3.12).
+     * Exact decimal division, so no floating-point error decides a tie. Null without ratings. Unlike the /admin/stats
+     * average, which is cut off ({@link Utils#roundRating}, CFP-61).
      */
     Double average() {
         if (count == 0) {
             return null;
         }
-        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
+        long sum = total;
+        int n = count;
+        if (count >= TRIM_FROM) {
+            sum -= min + max;
+            n -= 2;
+        }
+        return BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_EVEN).doubleValue();
     }
 }

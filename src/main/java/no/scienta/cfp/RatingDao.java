@@ -33,10 +33,10 @@ public class RatingDao {
         if (talkIds.isEmpty()) {
             return stats;
         }
-        jdbc.query("SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating WHERE talk_id = ANY(?) GROUP BY talk_id",
+        jdbc.query("SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total, MIN(score) AS lo, MAX(score) AS hi FROM rating WHERE talk_id = ANY(?) GROUP BY talk_id",
                 ps -> ps.setArray(1, ps.getConnection().createArrayOf("bigint", talkIds.toArray())),
                 rs -> {
-                    stats.put(rs.getLong("talk_id"), new RatingSummary(rs.getInt("cnt"), rs.getLong("total")));
+                    stats.put(rs.getLong("talk_id"), new RatingSummary(rs.getInt("cnt"), rs.getLong("total"), rs.getInt("lo"), rs.getInt("hi")));
                 });
         return stats;
     }

@@ -140,8 +140,9 @@ class ConferenceServiceTest {
     // ---------------------------------------------------------------- average rating
 
     @ParameterizedTest
-    @CsvSource({"'5,4,4,4', 4.3", "'5,4', 4.5", "'5,4,4', 4.3", "'4,4,3', 3.7", "'5', 5.0"})
-    void averageHasOneDecimalRoundedHalfUp(String scores, double expected) {
+    // Ratings change request: 2 decimals (was 1, halves up), trimmed at 5+ ratings (RatingSummaryTest).
+    @CsvSource({"'5,4,4,4', 4.25", "'5,4', 4.5", "'5,4,4', 4.33", "'4,4,3', 3.67", "'5', 5.0", "'5,5,5,1,1', 3.67"})
+    void averageHasTwoDecimalsAndIsTrimmedFromFiveRatings(String scores, double expected) {
         long talk = newTalk();
         String[] s = scores.split(",");
         for (int reviewer = 0; reviewer < s.length; reviewer++) {
@@ -182,6 +183,23 @@ class ConferenceServiceTest {
     }
 
     // ---------------------------------------------------------------- sort=rating
+
+    /** Ratings change request: the ranking uses the trimmed average (1,5,5,5,5 is 5.0, not 4.2, so above 4.5). */
+    @Test
+    void rankingUsesTheTrimmedAverage() {
+        long outlierHit = newTalk();
+        long steady = newTalk();
+        int reviewer = 1;
+        for (int score : new int[] {1, 5, 5, 5, 5}) {
+            ratingService.rate(outlierHit, reviewer++, score(score));
+        }
+        ratingService.rate(steady, reviewer++, score(5));
+        ratingService.rate(steady, reviewer, score(4));
+        List<TalkView> ranked = talkService.listTalks("rating", null);
+        assertEquals(List.of(outlierHit, steady), ranked.stream().map(TalkView::id).toList());
+        assertEquals(5.0, ranked.get(0).averageRating());
+        assertEquals(5, ranked.get(0).ratingCount());
+    }
 
     @Test
     void sortByRatingThenCountThenIdWithUnratedLast() {

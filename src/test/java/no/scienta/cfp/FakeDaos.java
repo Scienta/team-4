@@ -189,7 +189,9 @@ final class FakeDaos {
             for (Long talkId : talkIds) {
                 Map<Long, Integer> forTalk = scores.get(talkId);
                 if (forTalk != null && !forTalk.isEmpty()) {
-                    stats.put(talkId, new RatingSummary(forTalk.size(), forTalk.values().stream().mapToLong(Integer::longValue).sum()));
+                    stats.put(talkId, new RatingSummary(forTalk.size(), forTalk.values().stream().mapToLong(Integer::longValue).sum(),
+                            forTalk.values().stream().mapToInt(Integer::intValue).min().getAsInt(),
+                            forTalk.values().stream().mapToInt(Integer::intValue).max().getAsInt()));
                 }
             }
             return stats;
