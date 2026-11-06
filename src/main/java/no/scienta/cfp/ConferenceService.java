@@ -63,7 +63,7 @@ public class ConferenceService {
     }
 
     @Transactional
-    public Map<String, Object> registerSpeaker(SpeakerForm form) {
+    public Speaker registerSpeaker(SpeakerForm form) {
         checkSpeaker(form.getName(), form.getEmail(), form.getBio());
         if (speakerDao.emailTaken(form.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
@@ -76,16 +76,11 @@ public class ConferenceService {
         }
         log.info("registered speaker " + id + " (" + form.getEmail() + ")");
         notifications.speakerRegistered(form.getEmail(), form.getName());
-        Map<String, Object> speaker = new LinkedHashMap<>();
-        speaker.put("id", id);
-        speaker.put("name", form.getName());
-        speaker.put("email", form.getEmail());
-        speaker.put("bio", form.getBio());
-        return speaker;
+        return new Speaker(id, form.getName(), form.getEmail(), form.getBio());
     }
 
-    public Map<String, Object> getSpeaker(long id) {
-        Map<String, Object> speaker = speakerDao.findById(id);
+    public Speaker getSpeaker(long id) {
+        Speaker speaker = speakerDao.findById(id);
         if (speaker == null) {
             throw speakerNotFound();
         }
@@ -102,17 +97,17 @@ public class ConferenceService {
     }
 
     @Transactional
-    public Map<String, Object> updateSpeaker(long id, String name, String email, String bio) {
-        Map<String, Object> existing = getSpeaker(id);
+    public Speaker updateSpeaker(long id, String name, String email, String bio) {
+        Speaker existing = getSpeaker(id);
         checkSpeaker(name, email, bio);
-        if (!email.equalsIgnoreCase((String) existing.get("email")) && speakerDao.emailTaken(email)) {
+        if (!email.equalsIgnoreCase(existing.email()) && speakerDao.emailTaken(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }
         speakerDao.update(id, name, email, bio);
         return getSpeaker(id);
     }
 
-    public List<Map<String, Object>> searchSpeakers(String q) {
+    public List<Speaker> searchSpeakers(String q) {
         return speakerDao.search(q);
     }
 
@@ -145,8 +140,8 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "a speaker can submit at most " + MAX_TALKS_PER_SPEAKER + " talks");
         }
-        Map<String, Object> speaker = speakerDao.findById(form.speakerId);
-        notifications.talkSubmitted((String) speaker.get("email"), form.title);
+        Speaker speaker = speakerDao.findById(form.speakerId);
+        notifications.talkSubmitted(speaker.email(), form.title);
         return getTalk(id);
     }
 
@@ -391,7 +386,7 @@ public class ConferenceService {
     // ---------------------------------------------------------------- ratings
 
     @Transactional
-    public Map<String, Object> rate(long talkId, long reviewerId, Map<String, Object> body) {
+    public Rating rate(long talkId, long reviewerId, Map<String, Object> body) {
         if (reviewerId < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "reviewerId must be positive");
         }
@@ -406,12 +401,6 @@ public class ConferenceService {
         requireTalk(talkId);
         String now = Utils.now();
         ratingDao.save(talkId, reviewerId, s, now);
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("talkId", talkId);
-        result.put("reviewerId", reviewerId);
-        result.put("score", s);
-        result.put("ratedAtDisplay", Utils.usShort(Utils.parse(now)));
-        return result;
+        return new Rating(talkId, reviewerId, s, Utils.usShort(Utils.parse(now)));
     }
 }

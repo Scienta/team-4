@@ -6,10 +6,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class SpeakerDao {
+
+    private static final RowMapper<Speaker> SPEAKER = (rs, n) ->
+            new Speaker(rs.getLong("id"), rs.getString("name"), rs.getString("email"), rs.getString("bio"));
 
     private final JdbcTemplate jdbc;
 
@@ -17,8 +21,8 @@ public class SpeakerDao {
         this.jdbc = jdbc;
     }
 
-    public Map<String, Object> findById(long id) {
-        List<Map<String, Object>> rows = jdbc.queryForList("SELECT id, name, email, bio FROM speaker WHERE id = ?", id);
+    public Speaker findById(long id) {
+        List<Speaker> rows = jdbc.query("SELECT id, name, email, bio FROM speaker WHERE id = ?", SPEAKER, id);
         if (rows.isEmpty()) {
             return null;
         }
@@ -64,9 +68,9 @@ public class SpeakerDao {
     }
 
     // Used by the old admin page to look people up.
-    public List<Map<String, Object>> search(String name) {
+    public List<Speaker> search(String name) {
         String literal = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        return jdbc.queryForList("SELECT id, name, email, bio FROM speaker WHERE name ILIKE ? ORDER BY name",
+        return jdbc.query("SELECT id, name, email, bio FROM speaker WHERE name ILIKE ? ORDER BY name", SPEAKER,
                 "%" + literal + "%");
     }
 }
