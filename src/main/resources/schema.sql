@@ -66,3 +66,16 @@ CREATE TABLE IF NOT EXISTS workshop_registration (
     registered_at BIGINT NOT NULL                   -- epoch millis (UTC)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_workshop_registration_email ON workshop_registration (talk_id, lower(email));
+
+-- 2026-11 programme: fixed rooms R1-R3 and slots S1-S5. One talk per room and slot, each talk at most once.
+-- programme_slot exists for SELECT ... FOR UPDATE: changes to one slot run one at a time.
+CREATE TABLE IF NOT EXISTS programme_slot (
+    slot TEXT PRIMARY KEY
+);
+INSERT INTO programme_slot (slot) VALUES ('S1'), ('S2'), ('S3'), ('S4'), ('S5') ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS programme_entry (
+    room    TEXT NOT NULL,
+    slot    TEXT NOT NULL,
+    talk_id INTEGER NOT NULL UNIQUE,
+    PRIMARY KEY (room, slot)
+);
