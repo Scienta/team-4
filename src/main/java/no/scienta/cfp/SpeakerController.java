@@ -19,37 +19,39 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/speakers")
 public class SpeakerController {
 
-    private final ConferenceService service;
+    private final SpeakerService speakers;
+    private final TalkService talks;
 
-    public SpeakerController(ConferenceService service) {
-        this.service = service;
+    public SpeakerController(SpeakerService speakers, TalkService talks) {
+        this.speakers = speakers;
+        this.talks = talks;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Speaker create(@Valid @RequestBody SpeakerForm form) {
-        return service.registerSpeaker(form);
+        return speakers.registerSpeaker(form);
     }
 
     @GetMapping("/{id}")
     public Speaker get(@PathVariable Long id) {
-        return service.getSpeaker(id);
+        return speakers.getSpeaker(id);
     }
 
     // used by the admin UI to fix typos. No @Valid: the service checks the rules, as it did for the map before.
     @PutMapping("/{id}")
     public Speaker update(@PathVariable("id") Long id, @RequestBody SpeakerForm form) {
-        return service.updateSpeaker(id, form.getName(), form.getEmail(), form.getBio());
+        return speakers.updateSpeaker(id, form.getName(), form.getEmail(), form.getBio());
     }
 
     @GetMapping("/{id}/talks")
     public List<TalkDto> talks(@PathVariable Long id) {
-        return service.getTalksForSpeaker(id);
+        return talks.getTalksForSpeaker(id);
     }
 
     // admin only, not in the API docs
     @GetMapping("/search")
     public List<Speaker> search(@RequestParam String q) {
-        return service.searchSpeakers(q);
+        return speakers.searchSpeakers(q);
     }
 }

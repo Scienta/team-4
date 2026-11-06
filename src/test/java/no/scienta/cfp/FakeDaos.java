@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 
 /**
- * In-memory stand-ins for the DAOs, for unit tests of {@link ConferenceService} without a database. Each fake overrides
+ * In-memory stand-ins for the DAOs, for unit tests of the services without a database. Each fake overrides
  * every public method of its DAO, so the JdbcTemplate (null) is never touched. They model the database rules the
  * service relies on: unique email in any case, the 3-talk limit, one rating per reviewer, co-speakers in order.
  */
@@ -22,8 +22,24 @@ final class FakeDaos {
     final FakeRatingDao ratings = new FakeRatingDao();
     final FakeCoSpeakerDao coSpeakers = new FakeCoSpeakerDao();
 
-    ConferenceService service() {
-        return new ConferenceService(speakers, talks, ratings, coSpeakers, new NotificationService());
+    SpeakerService speakerService() {
+        return new SpeakerService(speakers, new NotificationService());
+    }
+
+    TalkService talkService() {
+        return new TalkService(speakers, talks, ratings, coSpeakers, new NotificationService());
+    }
+
+    RatingService ratingService() {
+        return new RatingService(talks, ratings);
+    }
+
+    CoSpeakerService coSpeakerService() {
+        return new CoSpeakerService(speakers, talks, coSpeakers, talkService());
+    }
+
+    StatisticsService statisticsService() {
+        return new StatisticsService(speakers, talkService());
     }
 
     static class FakeSpeakerDao extends SpeakerDao {
