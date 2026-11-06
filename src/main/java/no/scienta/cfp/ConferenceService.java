@@ -1,10 +1,7 @@
 package no.scienta.cfp;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,16 +24,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class ConferenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ConferenceService.class);
-
-    private static final Map<String, Integer> DURATIONS = new HashMap<>();
-
-    static {
-        DURATIONS.put("LIGHTNING_10", 10);
-        DURATIONS.put("LIGHTNING_20", 20);
-        DURATIONS.put("PRESENTATION", 45);
-        DURATIONS.put("WORKSHOP", 120);
-        // DURATIONS.put("KEYNOTE", 60);  // keynotes are invited, not submitted (2021)
-    }
 
     private final SpeakerDao speakerDao;
     private final TalkDao talkDao;
@@ -117,15 +104,19 @@ public class ConferenceService {
 
     // ---------------------------------------------------------------- talks
 
+    /** Talks spec: a speaker may submit at most 3 talks. */
+    static final int MAX_TALKS_PER_SPEAKER = 3;
+
     @Transactional
     public TalkDto submitTalk(TalkForm form) {
-        if (form.title == null || form.title.trim().isEmpty()) {
+        if (Utils.isEmpty(form.title)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "title is required");
         }
-        if (form.format == null || !DURATIONS.containsKey(form.format)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "format must be one of " + DURATIONS.keySet());
+        Format format = Format.parse(form.format);
+        if (format == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "format must be one of " + Arrays.toString(Format.values()));
         }
-        if (form.level == null || !Arrays.asList("BEGINNER", "INTERMEDIATE", "ADVANCED").contains(form.level)) {
+        if (Level.parse(form.level) == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown level");
         }
         if (form.speakerId == null) {
@@ -135,24 +126,10 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speaker " + form.speakerId + " does not exist");
         }
 
-        int duration;
-        switch (form.format) {
-            case "LIGHTNING_10":
-                duration = 10;
-                break;
-            case "LIGHTNING_20":
-                duration = 20;
-                break;
-            case "WORKSHOP":
-                duration = 120;
-                break;
-            default:
-                duration = 45;
-        }
-
-        Long id = checkSubmissionLimit(form, duration);
+        Long id = insertIfBelowLimit(form, format.durationMinutes);
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "a speaker can submit at most " + MAX_TALKS_PER_SPEAKER + " talks");
         }
         Map<String, Object> speaker = speakerDao.findById(form.speakerId);
         notifications.talkSubmitted((String) speaker.get("email"), form.title);
@@ -160,10 +137,11 @@ public class ConferenceService {
     }
 
     /**
-     * Checks that the speaker is below the limit of 3 talks.
+     * Inserts the talk if the speaker has fewer than {@link #MAX_TALKS_PER_SPEAKER} talks. Returns its id, or null
+     * (nothing inserted) if the speaker is already at the limit.
      */
-    private Long checkSubmissionLimit(TalkForm form, int duration) {
-        return talkDao.insertIfBelow(3, form.title, form.format, duration, form.level, form.speakerId,
+    private Long insertIfBelowLimit(TalkForm form, int duration) {
+        return talkDao.insertIfBelow(MAX_TALKS_PER_SPEAKER, form.title, form.format, duration, form.level, form.speakerId,
                 System.currentTimeMillis());
     }
 
@@ -231,13 +209,7 @@ public class ConferenceService {
         int count = ((Number) stats.get("cnt")).intValue();
         long total = ((Number) stats.get("total")).longValue();
         talk.ratingCount = count;
-        talk.averageRating = count == 0 ? null : calculateAverage(total, count);
-    }
-
-    // 1 decimal, half up (4.25 -> 4.3)
-    private Double calculateAverage(long total, int count) {
-        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
-        // return Utils.roundRating((double) total / count);
+        talk.averageRating = count == 0 ? null : Utils.roundRating((double) total / count);
     }
 
     // ---------------------------------------------------------------- co-speakers

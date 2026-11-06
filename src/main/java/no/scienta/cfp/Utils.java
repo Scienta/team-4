@@ -1,5 +1,7 @@
 package no.scienta.cfp;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -13,8 +15,6 @@ import java.util.TimeZone;
 public class Utils {
 
     public static final String DB_DATE_TIME = "yyyy-MM-dd HH:mm:ss";
-
-    public static final int MAX_TALKS = 5;
 
     private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
@@ -108,10 +108,11 @@ public class Utils {
     }
 
     /**
-     * Rounds a rating average to one decimal.
+     * Rounds a rating average to one decimal, halves up (ratings spec: 4, 4, 4, 5 averages 4.25, shown as 4.3).
+     * Rounds the double's shortest decimal form, so 4.15 gives 4.2 although the nearest double is just below 4.15.
      */
     public static double roundRating(double avg) {
-        return Math.floor(avg * 10) / 10.0;
+        return BigDecimal.valueOf(avg).setScale(1, RoundingMode.HALF_UP).doubleValue();
     }
 
     public static String capitalize(String s) {

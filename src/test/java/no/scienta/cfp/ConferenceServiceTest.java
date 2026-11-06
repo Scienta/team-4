@@ -64,6 +64,14 @@ class ConferenceServiceTest {
     void unknownFormatIsRejected() {
         TalkForm form = form(register("ada@example.com"));
         form.format = "KEYNOTE";
+        assertError(HttpStatus.BAD_REQUEST, "format must be one of [WORKSHOP, PRESENTATION, LIGHTNING_20, LIGHTNING_10]",
+                () -> service.submitTalk(form));
+    }
+
+    @Test
+    void formatIsCaseSensitive() {
+        TalkForm form = form(register("ada@example.com"));
+        form.format = "presentation";
         assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form));
     }
 
@@ -71,7 +79,24 @@ class ConferenceServiceTest {
     void unknownLevelIsRejected() {
         TalkForm form = form(register("ada@example.com"));
         form.level = "EXPERT";
+        assertError(HttpStatus.BAD_REQUEST, "unknown level", () -> service.submitTalk(form));
+    }
+
+    @Test
+    void levelIsCaseSensitive() {
+        TalkForm form = form(register("ada@example.com"));
+        form.level = "beginner";
         assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form));
+    }
+
+    @Test
+    void missingFormatAndLevelAreRejected() {
+        TalkForm noFormat = form(register("ada@example.com"));
+        noFormat.format = null;
+        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(noFormat));
+        TalkForm noLevel = form(register("bob@example.com"));
+        noLevel.level = null;
+        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(noLevel));
     }
 
     @Test
@@ -102,7 +127,7 @@ class ConferenceServiceTest {
         for (int i = 0; i < 3; i++) {
             service.submitTalk(form(ada));
         }
-        assertStatus(HttpStatus.CONFLICT, () -> service.submitTalk(form(ada)));
+        assertError(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks", () -> service.submitTalk(form(ada)));
     }
 
     // ---------------------------------------------------------------- average rating
@@ -130,6 +155,23 @@ class ConferenceServiceTest {
     @Test
     void unknownTalkIsNotFound() {
         assertStatus(HttpStatus.NOT_FOUND, () -> service.getTalk(99));
+    }
+
+    // ---------------------------------------------------------------- statistics
+
+    @Test
+    void statsAverageIsRoundedHalfUpLikeTheTalkAverage() {
+        newTalk(4);          // 4.0
+        newTalk(5, 4);       // 4.5
+        newTalk();           // unrated, not counted
+        // (4.0 + 4.5) / 2 = 4.25, shown as 4.3 (ratings spec: halves rounded up)
+        assertEquals(4.3, service.statistics().get("averageRating"));
+    }
+
+    @Test
+    void statsAverageIsNullWithoutRatings() {
+        newTalk();
+        assertNull(service.statistics().get("averageRating"));
     }
 
     // ---------------------------------------------------------------- sort=rating
@@ -236,6 +278,12 @@ class ConferenceServiceTest {
 
     private static void assertStatus(HttpStatus status, Executable call) {
         assertEquals(status, assertThrows(ResponseStatusException.class, call).getStatusCode());
+    }
+
+    private static void assertError(HttpStatus status, String reason, Executable call) {
+        ResponseStatusException e = assertThrows(ResponseStatusException.class, call);
+        assertEquals(status, e.getStatusCode());
+        assertEquals(reason, e.getReason());
     }
 
     private long register(String email) {
