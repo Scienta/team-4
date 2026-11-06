@@ -53,6 +53,16 @@ public class TalkDao {
         return list.isEmpty() ? null : list.get(0);
     }
 
+    /** Locks the talk row for the rest of the transaction and returns it (without decorations), or null if no such talk. */
+    public TalkDto lock(long id) {
+        List<TalkDto> list = jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ? FOR UPDATE", mapper, id);
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    public void updateStatus(long id, String status) {
+        jdbc.update("UPDATE talk SET status = ? WHERE id = ?", status, id);
+    }
+
     public boolean exists(long id) {
         Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM talk WHERE id = ?", Integer.class, id);
         return n != null && n > 0;
