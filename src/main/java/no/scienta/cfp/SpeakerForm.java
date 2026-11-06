@@ -13,7 +13,7 @@ public class SpeakerForm {
     @NotBlank
     private String email;
 
-    // at most ConferenceService.MAX_BIO characters, checked there: @Size counts an emoji as two
+    // at most SpeakerService.MAX_BIO characters, checked there: @Size counts an emoji as two
     private String bio;
 
     // TODO twitter handle, see CFP-112

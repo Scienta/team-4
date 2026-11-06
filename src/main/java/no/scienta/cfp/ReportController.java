@@ -14,21 +14,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ReportController {
 
-    private final ConferenceService service;
+    private final StatisticsService statistics;
+    private final TalkService talkService;
+    private final SpeakerService speakerService;
 
-    public ReportController(ConferenceService service) {
-        this.service = service;
+    public ReportController(StatisticsService statistics, TalkService talkService, SpeakerService speakerService) {
+        this.statistics = statistics;
+        this.talkService = talkService;
+        this.speakerService = speakerService;
     }
 
     @GetMapping("/admin/stats")
     public Map<String, Object> stats() {
-        return service.statistics();
+        return statistics.statistics();
     }
 
     @GetMapping("/admin/talks.csv")
     public ResponseEntity<String> talksCsv() {
-        List<TalkDto> talks = service.listTalks(null, null);
-        Map<Long, String> speakerNames = service.getSpeakerNames(talks.stream().map(t -> t.speakerId).toList());
+        List<TalkDto> talks = talkService.listTalks(null, null);
+        Map<Long, String> speakerNames = speakerService.getSpeakerNames(talks.stream().map(t -> t.speakerId).toList());
         StringBuilder sb = new StringBuilder();
         sb.append("id;title;format;minutes;level;speaker;status;submitted;rating;ratings\n");
         for (TalkDto t : talks) {

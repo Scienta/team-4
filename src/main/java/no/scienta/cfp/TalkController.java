@@ -17,52 +17,59 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class TalkController {
 
-    private final ConferenceService service;
+    private final TalkService talks;
+    private final CoSpeakerService coSpeakers;
+    private final AcceptanceService acceptance;
+    private final RatingService ratings;
 
-    public TalkController(ConferenceService service) {
-        this.service = service;
+    public TalkController(TalkService talks, CoSpeakerService coSpeakers, AcceptanceService acceptance,
+                          RatingService ratings) {
+        this.talks = talks;
+        this.coSpeakers = coSpeakers;
+        this.acceptance = acceptance;
+        this.ratings = ratings;
     }
 
     @PostMapping("/talks")
     @ResponseStatus(HttpStatus.CREATED)
     public TalkDto submit(@RequestBody TalkForm form) {
-        return service.submitTalk(form);
+        return talks.submitTalk(form);
     }
 
     @GetMapping("/talks/{id}")
     public TalkDto get(@PathVariable Long id) {
-        return service.getTalk(id);
+        return talks.getTalk(id);
     }
 
     @GetMapping("/talks")
     public List<TalkDto> list(@RequestParam(required = false) String sort,
                               @RequestParam(required = false) Long speakerId) {
-        return service.listTalks(sort, speakerId);
+        return talks.listTalks(sort, speakerId);
     }
 
     @PutMapping("/talks/{id}/co-speakers/{speakerId}")
     public TalkDto addCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
-        return service.addCoSpeaker(id, speakerId);
+        return coSpeakers.addCoSpeaker(id, speakerId);
     }
 
     @DeleteMapping("/talks/{id}/co-speakers/{speakerId}")
     public TalkDto removeCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
-        return service.removeCoSpeaker(id, speakerId);
+        return coSpeakers.removeCoSpeaker(id, speakerId);
     }
 
     @PutMapping("/talks/{id}/status")
     public TalkDto decide(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
-        return service.decide(id, body);
+        return acceptance.decide(id, body);
     }
 
     @PostMapping("/talks/{id}/withdraw")
     public TalkDto withdraw(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
-        return service.withdraw(id, body);
+        return acceptance.withdraw(id, body);
     }
 
     @PutMapping("/talks/{id}/ratings/{reviewerId}")
     public Rating rate(@PathVariable Long id, @PathVariable Long reviewerId,
                        @RequestBody Map<String, Object> body) {
-        return service.rate(id, reviewerId, body);
+        return ratings.rate(id, reviewerId, body);
     }
 }

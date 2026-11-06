@@ -19,14 +19,23 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-/** The service's rules, on in-memory fakes of the DAOs (no database, no HTTP). */
+/** The services' rules, on in-memory fakes of the DAOs (no database, no HTTP). */
 class ConferenceServiceTest {
 
-    private ConferenceService service;
+    private SpeakerService speakerService;
+    private TalkService talkService;
+    private RatingService ratingService;
+    private CoSpeakerService coSpeakerService;
+    private StatisticsService statisticsService;
 
     @BeforeEach
     void setUp() {
-        service = new FakeDaos().service();
+        FakeDaos daos = new FakeDaos();
+        speakerService = daos.speakerService();
+        talkService = daos.talkService();
+        ratingService = daos.ratingService();
+        coSpeakerService = daos.coSpeakerService();
+        statisticsService = daos.statisticsService();
     }
 
     // ---------------------------------------------------------------- speakers
@@ -34,19 +43,18 @@ class ConferenceServiceTest {
     @Test
     void duplicateEmailIsConflictInAnyCase() {
         register("ada@example.com");
-        assertStatus(HttpStatus.CONFLICT, () -> service.registerSpeaker(speaker("ADA@example.com")));
+        assertStatus(HttpStatus.CONFLICT, () -> speakerService.registerSpeaker(speaker("ADA@example.com")));
     }
 
     @Test
     void emailRegisteredConcurrentlyIsConflict() {
         // the pre-check misses a registration that lands just after it; the unique index catches it
-        FakeDaos racy = new FakeDaos();
-        ConferenceService racyService = new ConferenceService(new FakeDaos.FakeSpeakerDao() {
+        SpeakerService racyService = new SpeakerService(new FakeDaos.FakeSpeakerDao() {
             @Override
             public boolean emailTaken(String email) {
                 return false;
             }
-        }, racy.talks, racy.ratings, racy.coSpeakers, new NotificationService());
+        }, new NotificationService());
         racyService.registerSpeaker(speaker("ada@example.com"));
         assertStatus(HttpStatus.CONFLICT, () -> racyService.registerSpeaker(speaker("Ada@Example.com")));
     }
@@ -57,7 +65,7 @@ class ConferenceServiceTest {
     void talkWithoutTitleIsRejected() {
         TalkForm form = form(register("ada@example.com"));
         form.title = " ";
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(form));
     }
 
     @Test
@@ -65,50 +73,50 @@ class ConferenceServiceTest {
         TalkForm form = form(register("ada@example.com"));
         form.format = "KEYNOTE";
         assertError(HttpStatus.BAD_REQUEST, "format must be one of [WORKSHOP, PRESENTATION, LIGHTNING_20, LIGHTNING_10]",
-                () -> service.submitTalk(form));
+                () -> talkService.submitTalk(form));
     }
 
     @Test
     void formatIsCaseSensitive() {
         TalkForm form = form(register("ada@example.com"));
         form.format = "presentation";
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(form));
     }
 
     @Test
     void unknownLevelIsRejected() {
         TalkForm form = form(register("ada@example.com"));
         form.level = "EXPERT";
-        assertError(HttpStatus.BAD_REQUEST, "unknown level", () -> service.submitTalk(form));
+        assertError(HttpStatus.BAD_REQUEST, "unknown level", () -> talkService.submitTalk(form));
     }
 
     @Test
     void levelIsCaseSensitive() {
         TalkForm form = form(register("ada@example.com"));
         form.level = "beginner";
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(form));
     }
 
     @Test
     void missingFormatAndLevelAreRejected() {
         TalkForm noFormat = form(register("ada@example.com"));
         noFormat.format = null;
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(noFormat));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(noFormat));
         TalkForm noLevel = form(register("bob@example.com"));
         noLevel.level = null;
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(noLevel));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(noLevel));
     }
 
     @Test
     void missingSpeakerIdIsRejected() {
         TalkForm form = form(1);
         form.speakerId = null;
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(form));
     }
 
     @Test
     void unknownSpeakerIsRejected() {
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.submitTalk(form(7)));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.submitTalk(form(7)));
     }
 
     @ParameterizedTest
@@ -116,18 +124,18 @@ class ConferenceServiceTest {
     void durationFollowsFormat(String format, int minutes) {
         TalkForm form = form(register("ada@example.com"));
         form.format = format;
-        TalkDto talk = service.submitTalk(form);
+        TalkDto talk = talkService.submitTalk(form);
         assertEquals(minutes, talk.durationMinutes);
-        assertEquals(minutes, service.getTalk(talk.id).durationMinutes);
+        assertEquals(minutes, talkService.getTalk(talk.id).durationMinutes);
     }
 
     @Test
     void atMostThreeTalksPerSpeaker() {
         long ada = register("ada@example.com");
         for (int i = 0; i < 3; i++) {
-            service.submitTalk(form(ada));
+            talkService.submitTalk(form(ada));
         }
-        assertError(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks", () -> service.submitTalk(form(ada)));
+        assertError(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks", () -> talkService.submitTalk(form(ada)));
     }
 
     // ---------------------------------------------------------------- average rating
@@ -138,23 +146,23 @@ class ConferenceServiceTest {
         long talk = newTalk();
         String[] s = scores.split(",");
         for (int reviewer = 0; reviewer < s.length; reviewer++) {
-            service.rate(talk, reviewer + 1, score(Integer.parseInt(s[reviewer])));
+            ratingService.rate(talk, reviewer + 1, score(Integer.parseInt(s[reviewer])));
         }
-        TalkDto t = service.getTalk(talk);
+        TalkDto t = talkService.getTalk(talk);
         assertEquals(expected, t.averageRating);
         assertEquals(s.length, t.ratingCount);
     }
 
     @Test
     void unratedTalkHasNoAverage() {
-        TalkDto t = service.getTalk(newTalk());
+        TalkDto t = talkService.getTalk(newTalk());
         assertNull(t.averageRating);
         assertEquals(0, t.ratingCount);
     }
 
     @Test
     void unknownTalkIsNotFound() {
-        assertStatus(HttpStatus.NOT_FOUND, () -> service.getTalk(99));
+        assertStatus(HttpStatus.NOT_FOUND, () -> talkService.getTalk(99));
     }
 
     // ---------------------------------------------------------------- statistics
@@ -165,13 +173,13 @@ class ConferenceServiceTest {
         newTalk(5, 4);       // 4.5
         newTalk();           // unrated, not counted
         // (4.0 + 4.5) / 2 = 4.25, cut off to 4.2 (CFP-61); a talk's own 4.25 would show as 4.3
-        assertEquals(4.2, service.statistics().get("averageRating"));
+        assertEquals(4.2, statisticsService.statistics().get("averageRating"));
     }
 
     @Test
     void statsAverageIsNullWithoutRatings() {
         newTalk();
-        assertNull(service.statistics().get("averageRating"));
+        assertNull(statisticsService.statistics().get("averageRating"));
     }
 
     // ---------------------------------------------------------------- sort=rating
@@ -184,13 +192,13 @@ class ConferenceServiceTest {
         long t4 = newTalk(5);           // 5.0
         long t5 = newTalk(4);           // 4.0, 1 rating, higher id than t2
         long t6 = newTalk();            // unrated
-        List<Long> ids = service.listTalks("rating", null).stream().map(t -> t.id).collect(Collectors.toList());
+        List<Long> ids = talkService.listTalks("rating", null).stream().map(t -> t.id).collect(Collectors.toList());
         assertEquals(Arrays.asList(t4, t3, t2, t5, t1, t6), ids);
     }
 
     @Test
     void unknownSortIsRejected() {
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.listTalks("title", null));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> talkService.listTalks("title", null));
     }
 
     // ---------------------------------------------------------------- rate
@@ -198,26 +206,26 @@ class ConferenceServiceTest {
     @Test
     void ratingIsEchoedAndCounted() {
         long talk = newTalk();
-        Rating result = service.rate(talk, 2, score(4));
+        Rating result = ratingService.rate(talk, 2, score(4));
         assertEquals(talk, result.talkId());
         assertEquals(2L, result.reviewerId());
         assertEquals(4, result.score());
-        assertEquals(1, service.getTalk(talk).ratingCount);
+        assertEquals(1, talkService.getTalk(talk).ratingCount);
     }
 
     @Test
     void reviewerRatingAgainReplacesTheirRating() {
         long talk = newTalk();
-        service.rate(talk, 2, score(1));
-        service.rate(talk, 2, score(5));
-        TalkDto t = service.getTalk(talk);
+        ratingService.rate(talk, 2, score(1));
+        ratingService.rate(talk, 2, score(5));
+        TalkDto t = talkService.getTalk(talk);
         assertEquals(1, t.ratingCount);
         assertEquals(5.0, t.averageRating);
     }
 
     @Test
     void ratedAtDisplayIsUsShortFormat() {
-        String display = service.rate(newTalk(), 2, score(4)).ratedAtDisplay();
+        String display = ratingService.rate(newTalk(), 2, score(4)).ratedAtDisplay();
         // a plain space before AM/PM: JDK 20+ would put U+202F there
         assertTrue(display.matches("\\d{1,2}/\\d{1,2}/\\d{2}, \\d{1,2}:\\d{2} [AP]M"), display);
     }
@@ -226,27 +234,27 @@ class ConferenceServiceTest {
     @CsvSource({"0", "6", "-1"})
     void scoreOutsideOneToFiveIsRejected(int score) {
         long talk = newTalk();
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.rate(talk, 2, score(score)));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> ratingService.rate(talk, 2, score(score)));
     }
 
     @Test
     void scoreThatIsNotAWholeNumberIsRejected() {
         long talk = newTalk();
         for (Object score : Arrays.asList(4.0, 4.5, "4", null, true, 3_000_000_000L)) {
-            assertStatus(HttpStatus.BAD_REQUEST, () -> service.rate(talk, 2, score(score)));
+            assertStatus(HttpStatus.BAD_REQUEST, () -> ratingService.rate(talk, 2, score(score)));
         }
-        assertEquals(0, service.getTalk(talk).ratingCount);
+        assertEquals(0, talkService.getTalk(talk).ratingCount);
     }
 
     @Test
     void reviewerIdMustBePositive() {
         long talk = newTalk();
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.rate(talk, 0, score(4)));
+        assertStatus(HttpStatus.BAD_REQUEST, () -> ratingService.rate(talk, 0, score(4)));
     }
 
     @Test
     void ratingUnknownTalkIsNotFound() {
-        assertStatus(HttpStatus.NOT_FOUND, () -> service.rate(99, 2, score(4)));
+        assertStatus(HttpStatus.NOT_FOUND, () -> ratingService.rate(99, 2, score(4)));
     }
 
     // ---------------------------------------------------------------- co-speakers
@@ -254,24 +262,24 @@ class ConferenceServiceTest {
     @Test
     void mainSpeakerCannotBeTheirOwnCoSpeaker() {
         long main = register("main@example.com");
-        long talk = service.submitTalk(form(main)).id;
-        assertStatus(HttpStatus.BAD_REQUEST, () -> service.addCoSpeaker(talk, main));
+        long talk = talkService.submitTalk(form(main)).id;
+        assertStatus(HttpStatus.BAD_REQUEST, () -> coSpeakerService.addCoSpeaker(talk, main));
     }
 
     @Test
     void removingSomeoneWhoIsNotACoSpeakerIsNotFound() {
         long talk = newTalk();
         long ada = register("ada@example.com");
-        assertStatus(HttpStatus.NOT_FOUND, () -> service.removeCoSpeaker(talk, ada));
+        assertStatus(HttpStatus.NOT_FOUND, () -> coSpeakerService.removeCoSpeaker(talk, ada));
     }
 
     @Test
     void removedCoSpeakerCanNotBeRemovedTwice() {
         long talk = newTalk();
         long ada = register("ada@example.com");
-        service.addCoSpeaker(talk, ada);
-        assertEquals(Arrays.asList(), service.removeCoSpeaker(talk, ada).coSpeakerIds);
-        assertStatus(HttpStatus.NOT_FOUND, () -> service.removeCoSpeaker(talk, ada));
+        coSpeakerService.addCoSpeaker(talk, ada);
+        assertEquals(Arrays.asList(), coSpeakerService.removeCoSpeaker(talk, ada).coSpeakerIds);
+        assertStatus(HttpStatus.NOT_FOUND, () -> coSpeakerService.removeCoSpeaker(talk, ada));
     }
 
     // ---------------------------------------------------------------- helpers
@@ -287,7 +295,7 @@ class ConferenceServiceTest {
     }
 
     private long register(String email) {
-        return service.registerSpeaker(speaker(email)).id();
+        return speakerService.registerSpeaker(speaker(email)).id();
     }
 
     private int speakers;
@@ -295,9 +303,9 @@ class ConferenceServiceTest {
     /** A talk by a fresh speaker, rated with the given scores by reviewers 1, 2, ... */
     private long newTalk(int... scores) {
         long speaker = register("speaker-" + (++speakers) + "@example.com");
-        long talk = service.submitTalk(form(speaker)).id;
+        long talk = talkService.submitTalk(form(speaker)).id;
         for (int i = 0; i < scores.length; i++) {
-            service.rate(talk, i + 1, score(scores[i]));
+            ratingService.rate(talk, i + 1, score(scores[i]));
         }
         return talk;
     }

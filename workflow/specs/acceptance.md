@@ -58,7 +58,7 @@ The state machine is `TalkStatus`, a sealed interface with one record per state.
 has the moves it allows, so illegal transitions don't compile. Requests arrive as data, so
 `decide(Decision, reviewers)` and `withdraw(owner, requester)` switch exhaustively over the states and
 throw `Refused` (INVALID / NOT_THE_SPEAKER / NOT_ALLOWED) for what a state doesn't offer.
-`ConferenceService` locks and loads the talk, calls the state machine, writes `name()`, and maps a
+`AcceptanceService` locks and loads the talk, calls the state machine, writes `name()`, and maps a
 refusal to 400 / 403 / 409.
 
 ## Tests
