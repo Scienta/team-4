@@ -57,9 +57,9 @@ The state machine is `TalkStatus`, a sealed interface with one record per state.
 (`Undecided`: accept/reject, `Withdrawable`: withdraw) and `Submitted.waitlist()` mean each state only
 has the moves it allows, so illegal transitions don't compile. Requests arrive as data, so
 `decide(Decision, reviewers)` and `withdraw(owner, requester)` switch exhaustively over the states and
-throw `Refused` (INVALID / NOT_THE_SPEAKER / NOT_ALLOWED) for what a state doesn't offer.
-`AcceptanceService` locks and loads the talk, calls the state machine, writes `name()`, and maps a
-refusal to 400 / 403 / 409.
+throw `Refused` (INVALID / NOT_PERMITTED / NOT_ALLOWED) for what a state doesn't offer.
+`AcceptanceService` locks and loads the talk, calls the state machine and writes `name()`; `ApiErrors`
+maps a refusal to 400 / 403 / 409.
 
 ## Tests
 
