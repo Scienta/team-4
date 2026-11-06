@@ -25,8 +25,8 @@ final class WorkshopRules {
         }
     }
 
-    /** Is this talk a workshop at all? Registrations can only be listed for workshops. */
-    static void requireWorkshop(String format) {
+    /** Is this talk a workshop at all? */
+    private static void requireWorkshop(String format) {
         if (!WORKSHOP.equals(format)) {
             throw new Refused(Reason.NOT_A_WORKSHOP, "not a workshop");
         }

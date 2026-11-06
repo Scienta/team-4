@@ -80,15 +80,19 @@ class WorkshopRegistrationTest {
     }
 
     @Test
-    void unknownTalkOrNotAWorkshopIs404() throws Exception {
+    void unknownTalkIs404() throws Exception {
         assertEquals(404, register("999999", "Ada", "ada@example.com").statusCode());
         assertEquals(404, api.send("GET", "/workshops/999999/registrations").statusCode());
+    }
 
-        String presentation = api.newTalk(api.newSpeaker());
-        rateTwice(presentation);
-        assertEquals(200, decide(presentation, "ACCEPTED").statusCode());
-        assertEquals(404, register(presentation, "Ada", "ada@example.com").statusCode());
-        assertEquals(404, api.send("GET", "/workshops/" + presentation + "/registrations").statusCode());
+    /** Harness check-2 (tick 84): registering for an accepted non-workshop talk must not be 404; we answer 409. */
+    @Test
+    void acceptedTalkThatIsNotAWorkshopIs409() throws Exception {
+        String lightning = api.newTalk(api.newSpeaker());
+        rateTwice(lightning);
+        assertEquals(200, decide(lightning, "ACCEPTED").statusCode());
+        assertEquals(409, register(lightning, "Ada", "ada@example.com").statusCode());
+        assertEquals(404, api.send("GET", "/workshops/" + lightning + "/registrations").statusCode());
     }
 
     @Test

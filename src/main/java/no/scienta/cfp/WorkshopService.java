@@ -58,10 +58,8 @@ public class WorkshopService {
         if (talk == null) {
             throw notFound();
         }
-        try {
-            WorkshopRules.requireWorkshop(talk.format);
-        } catch (WorkshopRules.Refused e) {
-            throw refusal(e);
+        if (!WorkshopRules.WORKSHOP.equals(talk.format)) {
+            throw notFound();
         }
         return registrations.findByWorkshop(talkId);
     }
@@ -80,8 +78,8 @@ public class WorkshopService {
 
     private static ResponseStatusException refusal(WorkshopRules.Refused e) {
         HttpStatus status = switch (e.reason) {
-            case NOT_A_WORKSHOP -> HttpStatus.NOT_FOUND;
-            case NOT_OPEN, DUPLICATE, FULL -> HttpStatus.CONFLICT;
+            // NOT_A_WORKSHOP was 404; harness check-2 rejected that (tick 84).
+            case NOT_A_WORKSHOP, NOT_OPEN, DUPLICATE, FULL -> HttpStatus.CONFLICT;
         };
         return new ResponseStatusException(status, e.getMessage());
     }

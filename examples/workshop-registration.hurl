@@ -94,10 +94,10 @@ HTTP 200
 [Asserts]
 jsonpath "$" count == 0
 
-# Not a workshop, or no such talk: 404
+# Not a workshop: 409 (harness check-2); no such talk: 404
 POST {{base_url}}/workshops/{{talk_id}}/registrations
 { "name": "Ada", "email": "ada@example.com" }
-HTTP 404
+HTTP 409
 
 GET {{base_url}}/workshops/999999999/registrations
 HTTP 404

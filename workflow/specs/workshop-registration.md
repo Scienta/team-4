@@ -20,7 +20,9 @@ Spec: harness `/specs/workshop-registration/spec.md` (v1, drip feature, released
 
 | Case | Answer |
 |---|---|
-| Talk doesn't exist, or isn't a `WORKSHOP` (POST and GET) | 404 |
+| Talk doesn't exist (POST and GET) | 404 |
+| POST for a talk that isn't a `WORKSHOP` | 409 (was 404; harness check-2 rejected it, tick 84) |
+| GET for a talk that isn't a `WORKSHOP` | 404 (no check has asked yet) |
 | Non-numeric id in path | 400 (Spring default) |
 | Body missing, name or email missing/blank | 400 |
 | Email not a valid email (same check as speakers) | 400 |
@@ -44,8 +46,8 @@ and so is a concurrent withdrawal or decision (they lock the same row). Backstop
 
 `WorkshopRules` is plain Java (no Spring, no database): given the talk's format, its `TalkStatus`, how
 many are registered and whether the email is already there, it either allows the registration or throws
-`Refused` with a reason (NOT_A_WORKSHOP / NOT_OPEN / DUPLICATE / FULL). `ConferenceService` locks, loads,
-asks the rules, inserts, and maps reasons to 404 / 409.
+`Refused` with a reason (NOT_A_WORKSHOP / NOT_OPEN / DUPLICATE / FULL). `WorkshopService` locks, loads,
+asks the rules, inserts, and maps every reason to 409.
 
 ## Storage
 
