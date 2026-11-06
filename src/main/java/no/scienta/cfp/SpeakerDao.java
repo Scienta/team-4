@@ -1,5 +1,7 @@
 package no.scienta.cfp;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +43,20 @@ public class SpeakerDao {
 
     public int update(long id, String name, String email, String bio) {
         return jdbc.update("UPDATE speaker SET name = ?, email = ?, bio = ? WHERE id = ?", name, email, bio, id);
+    }
+
+    /** The names of the given speakers that exist, by id, in one query. */
+    public Map<Long, String> names(Collection<Long> ids) {
+        Map<Long, String> names = new HashMap<>();
+        if (ids.isEmpty()) {
+            return names;
+        }
+        jdbc.query("SELECT id, name FROM speaker WHERE id = ANY(?)",
+                ps -> ps.setArray(1, ps.getConnection().createArrayOf("bigint", ids.toArray())),
+                rs -> {
+                    names.put(rs.getLong("id"), rs.getString("name"));
+                });
+        return names;
     }
 
     public int count() {

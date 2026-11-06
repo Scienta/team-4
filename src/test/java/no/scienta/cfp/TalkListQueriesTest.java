@@ -192,6 +192,29 @@ class TalkListQueriesTest {
 
     // ---------------------------------------------------------------- query counts
 
+    @Test
+    void statementsPerRequestDoNotGrowWithTheNumberOfTalks() throws Exception {
+        Map<String, Integer> before = statementCounts();
+        for (int i = 6; i <= 25; i++) {
+            talk(i, "Talk " + i, "PRESENTATION", 45, "BEGINNER", "SUBMITTED", 1 + i % 3);
+            ratings(i, 1 + i % 5, 2);
+            coSpeaker(i, 4);
+        }
+        assertEquals(before, statementCounts());
+        assertEquals(Map.of("/talks", 3, "/talks?sort=rating", 3, "/speakers/1/talks", 4, "/admin/stats", 5,
+                "/admin/talks.csv", 4), before);
+    }
+
+    private Map<String, Integer> statementCounts() throws Exception {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (String path : new String[] {"/talks", "/talks?sort=rating", "/speakers/1/talks", "/admin/stats", "/admin/talks.csv"}) {
+            STATEMENTS.set(0);
+            assertEquals(200, api.send("GET", path).statusCode(), path);
+            counts.put(path, STATEMENTS.get());
+        }
+        return counts;
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private String body(String path) throws Exception {
