@@ -51,6 +51,11 @@ Agent instructions live in `.claude/rules/` (loaded every session), e.g.
   which instance (old or new) served the 404s.
 - **The harness transcripts** after claiming were the final reviewer, and caught what we got wrong (section 4).
 - Not done: a separate review agent on the feature PRs. Feature commits went straight to `main` after a green build.
+- **Done for the concurrency audit (PRs #13–#16).** One agent audited the code for races and pool exhaustion. One
+  implementer agent per finding, each in its own git worktree, opened a PR. A fresh reviewer agent read each PR
+  without seeing the audit's reasoning, and we merged only after an APPROVE. The reviewers ran tests, reverted the
+  fix to watch the test fail, and raised points the implementers hadn't: startup now has only 10 s for its first DB
+  connection, and a lock-timeout error after the lock is taken would still give 500.
 
 ## 3. Claim log
 
@@ -93,6 +98,14 @@ Both misses are the same mistake: answering **404 for something that exists but 
   investigated yet. **Why we missed it:** our tests and Hurl files assert status codes only, never the error body,
   and the harness hasn't checked messages either. The frontend works around it by explaining each refusal per action
   and status code; the backend is unchanged.
+- **Found by our own concurrency audit, not the harness (PRs #13–#16, merged without DEPLOY).**
+  - `PUT /speakers/{id}` racing another request for the same email gave 500: the pre-check passed for both and the
+    unique index rejected one, uncaught. Now 409, like registering (#13; the test was red with the fix reverted).
+  - Pool and connection limits: Hikari connection timeout 30 s → 10 s (#14), `socketTimeout=30` so a half-open
+    connection can't hang the `/health` probe forever (#15), and `lock_timeout` 5 s on every `FOR UPDATE`, then 503
+    with `Retry-After` (#16, docs/adr/0001).
+  - **Why we missed them:** our concurrency tests covered the rules we were building (seats, co-speaker max), not
+    the base app's update path. Nothing tested what happens when the DB or the pool is slow.
 
 ## 5. Reusable artifacts
 
