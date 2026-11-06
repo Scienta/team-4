@@ -198,10 +198,10 @@ class ConferenceServiceTest {
     @Test
     void ratingIsEchoedAndCounted() {
         long talk = newTalk();
-        Map<String, Object> result = service.rate(talk, 2, score(4));
-        assertEquals(talk, result.get("talkId"));
-        assertEquals(2L, result.get("reviewerId"));
-        assertEquals(4, result.get("score"));
+        Rating result = service.rate(talk, 2, score(4));
+        assertEquals(talk, result.talkId());
+        assertEquals(2L, result.reviewerId());
+        assertEquals(4, result.score());
         assertEquals(1, service.getTalk(talk).ratingCount);
     }
 
@@ -217,7 +217,7 @@ class ConferenceServiceTest {
 
     @Test
     void ratedAtDisplayIsUsShortFormat() {
-        String display = (String) service.rate(newTalk(), 2, score(4)).get("ratedAtDisplay");
+        String display = service.rate(newTalk(), 2, score(4)).ratedAtDisplay();
         // a plain space before AM/PM: JDK 20+ would put U+202F there
         assertTrue(display.matches("\\d{1,2}/\\d{1,2}/\\d{2}, \\d{1,2}:\\d{2} [AP]M"), display);
     }
@@ -287,7 +287,7 @@ class ConferenceServiceTest {
     }
 
     private long register(String email) {
-        return ((Number) service.registerSpeaker(speaker(email)).get("id")).longValue();
+        return service.registerSpeaker(speaker(email)).id();
     }
 
     private int speakers;

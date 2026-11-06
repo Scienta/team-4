@@ -1,7 +1,6 @@
 package no.scienta.cfp;
 
 import java.util.List;
-import java.util.Map;
 
 import jakarta.validation.Valid;
 
@@ -28,19 +27,19 @@ public class SpeakerController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Map<String, Object> create(@Valid @RequestBody SpeakerForm form) {
+    public Speaker create(@Valid @RequestBody SpeakerForm form) {
         return service.registerSpeaker(form);
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable Long id) {
+    public Speaker get(@PathVariable Long id) {
         return service.getSpeaker(id);
     }
 
-    // used by the admin UI to fix typos
+    // used by the admin UI to fix typos. No @Valid: the service checks the rules, as it did for the map before.
     @PutMapping("/{id}")
-    public Map<String, Object> update(@PathVariable("id") Long id, @RequestBody Map<String, String> body) {
-        return service.updateSpeaker(id, body.get("name"), body.get("email"), body.get("bio"));
+    public Speaker update(@PathVariable("id") Long id, @RequestBody SpeakerForm form) {
+        return service.updateSpeaker(id, form.getName(), form.getEmail(), form.getBio());
     }
 
     @GetMapping("/{id}/talks")
@@ -50,7 +49,7 @@ public class SpeakerController {
 
     // admin only, not in the API docs
     @GetMapping("/search")
-    public List<Map<String, Object>> search(@RequestParam String q) {
+    public List<Speaker> search(@RequestParam String q) {
         return service.searchSpeakers(q);
     }
 }

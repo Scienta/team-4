@@ -61,8 +61,8 @@ public class TalkController {
     }
 
     @PutMapping("/talks/{id}/ratings/{reviewerId}")
-    public Map<String, Object> rate(@PathVariable Long id, @PathVariable Long reviewerId,
-                                    @RequestBody Map<String, Object> body) {
+    public Rating rate(@PathVariable Long id, @PathVariable Long reviewerId,
+                       @RequestBody Map<String, Object> body) {
         return service.rate(id, reviewerId, body);
     }
 }

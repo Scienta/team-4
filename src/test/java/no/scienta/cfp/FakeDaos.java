@@ -28,16 +28,15 @@ final class FakeDaos {
 
     static class FakeSpeakerDao extends SpeakerDao {
 
-        private final Map<Long, Map<String, Object>> rows = new LinkedHashMap<>();
+        private final Map<Long, Speaker> rows = new LinkedHashMap<>();
 
         FakeSpeakerDao() {
             super(null);
         }
 
         @Override
-        public Map<String, Object> findById(long id) {
-            Map<String, Object> row = rows.get(id);
-            return row == null ? null : new LinkedHashMap<>(row);
+        public Speaker findById(long id) {
+            return rows.get(id);
         }
 
         @Override
@@ -57,7 +56,7 @@ final class FakeDaos {
                 throw new DuplicateKeyException("ux_speaker_email");
             }
             long id = rows.size() + 1;
-            rows.put(id, row(id, name, email, bio));
+            rows.put(id, new Speaker(id, name, email, bio));
             return id;
         }
 
@@ -66,7 +65,7 @@ final class FakeDaos {
             if (!rows.containsKey(id)) {
                 return 0;
             }
-            rows.put(id, row(id, name, email, bio));
+            rows.put(id, new Speaker(id, name, email, bio));
             return 1;
         }
 
@@ -88,24 +87,15 @@ final class FakeDaos {
         }
 
         @Override
-        public List<Map<String, Object>> search(String name) {
+        public List<Speaker> search(String name) {
             return rows.values().stream()
-                    .filter(r -> ((String) r.get("name")).toLowerCase().contains(name.toLowerCase()))
+                    .filter(r -> r.name().toLowerCase().contains(name.toLowerCase()))
                     .collect(Collectors.toList());
         }
 
         /** Separate from {@link #emailTaken}, so a test can make the check miss a concurrent registration. */
         private boolean emailTakenInStore(String email) {
-            return rows.values().stream().anyMatch(r -> ((String) r.get("email")).equalsIgnoreCase(email));
-        }
-
-        private static Map<String, Object> row(long id, String name, String email, String bio) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("id", id);
-            row.put("name", name);
-            row.put("email", email);
-            row.put("bio", bio);
-            return row;
+            return rows.values().stream().anyMatch(r -> r.email().equalsIgnoreCase(email));
         }
     }
 

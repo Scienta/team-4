@@ -3,7 +3,7 @@ package no.scienta.cfp;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Request body for POST /speakers.
+ * Request body for POST /speakers (bean-validated) and PUT /speakers/{id} (checked by the service only).
  */
 public class SpeakerForm {
 
