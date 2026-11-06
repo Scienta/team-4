@@ -9,10 +9,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /** Putting talks into rooms and slots (rules in ProgrammeRules, workflow/specs/scheduling.md). */
 @Service
@@ -40,21 +38,19 @@ public class ProgrammeService {
         Slot slot = slot(slotName);
         Object raw = body == null ? null : body.get("talkId");
         if (!(raw instanceof Integer || raw instanceof Long)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "talkId must be a whole number");
+            throw Refused.invalid("talkId must be a whole number");
         }
         long talkId = ((Number) raw).longValue();
-        TalkDto talk = talkDao.lock(talkId);
-        if (talk == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "talk " + talkId + " does not exist");
-        }
+        Talk talk = talkDao.lock(talkId)
+                .orElseThrow(() -> Refused.invalid("talk " + talkId + " does not exist"));
         programme.lockSlot(slot);
 
         List<ProgrammeEntry> entries = programme.findAll();
         Set<Long> inSlot = new HashSet<>();
         entries.stream().filter(e -> e.slot() == slot).forEach(e -> inSlot.add(e.talkId()));
         Map<Long, Set<Long>> peopleOf = people(inSlot);
-        ProgrammeRules.Candidate candidate = new ProgrammeRules.Candidate(talkId, Format.parse(talk.format),
-                TalkStatus.of(talk.status), people(talk.id, talk.speakerId));
+        ProgrammeRules.Candidate candidate = new ProgrammeRules.Candidate(talkId, Format.parse(talk.format()),
+                talk.status(), people(talk.id(), talk.mainSpeakerId()));
         ProgrammeEntry entry = new ProgrammeEntry(room, slot, talkId);
         try {
             if (ProgrammeRules.place(candidate, room, slot, entries, peopleOf)) {
@@ -62,9 +58,9 @@ public class ProgrammeService {
                 log.info("programme: talk " + talkId + " in " + room + " " + slot);
             }
         } catch (ProgrammeRules.Refused e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+            throw Refused.notAllowed(e.getMessage());
         } catch (DuplicateKeyException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "room and slot taken, or talk already on the programme");
+            throw Refused.notAllowed("room and slot taken, or talk already on the programme");
         }
         return ProgrammeEntryView.of(entry);
     }
@@ -92,11 +88,8 @@ public class ProgrammeService {
         Map<Long, List<Long>> coSpeakers = coSpeakerDao.findByTalks(talkIds);
         Map<Long, Set<Long>> people = new HashMap<>();
         for (Long id : talkIds) {
-            TalkDto t = talkDao.findById(id);
             Set<Long> set = new HashSet<>(coSpeakers.getOrDefault(id, List.of()));
-            if (t != null) {
-                set.add(t.speakerId);
-            }
+            talkDao.findById(id).ifPresent(t -> set.add(t.mainSpeakerId()));
             people.put(id, set);
         }
         return people;
@@ -111,7 +104,7 @@ public class ProgrammeService {
     private static Room room(String name) {
         Room room = Room.parse(name);
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no room " + name);
+            throw Refused.notFound("no room " + name);
         }
         return room;
     }
@@ -119,12 +112,12 @@ public class ProgrammeService {
     private static Slot slot(String name) {
         Slot slot = Slot.parse(name);
         if (slot == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no slot " + name);
+            throw Refused.notFound("no slot " + name);
         }
         return slot;
     }
 
-    private static ResponseStatusException empty() {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, "no talk in this room and slot");
+    private static Refused empty() {
+        return Refused.notFound("no talk in this room and slot");
     }
 }
