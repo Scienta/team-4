@@ -15,14 +15,16 @@ public class ProgrammeDao {
             new ProgrammeEntry(Room.valueOf(rs.getString("room")), Slot.valueOf(rs.getString("slot")), rs.getLong("talk_id"));
 
     private final JdbcTemplate jdbc;
+    private final RowLocks rowLocks;
 
-    public ProgrammeDao(JdbcTemplate jdbc) {
+    public ProgrammeDao(JdbcTemplate jdbc, RowLocks rowLocks) {
         this.jdbc = jdbc;
+        this.rowLocks = rowLocks;
     }
 
     /** Locks the slot (in every room) for the rest of the transaction: changes to one slot run one at a time. */
     public void lockSlot(Slot slot) {
-        jdbc.queryForList("SELECT slot FROM programme_slot WHERE slot = ? FOR UPDATE", slot.name());
+        rowLocks.forUpdate(() -> jdbc.queryForList("SELECT slot FROM programme_slot WHERE slot = ? FOR UPDATE", slot.name()));
     }
 
     public List<ProgrammeEntry> findAll() {

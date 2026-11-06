@@ -26,9 +26,11 @@ public class TalkDao {
             Instant.ofEpochMilli(rs.getLong("submitted_at")));
 
     private final JdbcTemplate jdbc;
+    private final RowLocks rowLocks;
 
-    public TalkDao(JdbcTemplate jdbc) {
+    public TalkDao(JdbcTemplate jdbc, RowLocks rowLocks) {
         this.jdbc = jdbc;
+        this.rowLocks = rowLocks;
     }
 
     public Optional<Talk> findById(long id) {
@@ -49,7 +51,8 @@ public class TalkDao {
      * co-speakers or its workshop registrations takes this lock first (docs/adr/0001-talk-row-lock.md).
      */
     public Optional<Talk> lock(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ? FOR UPDATE", TALK, id).stream().findFirst();
+        return rowLocks.forUpdate(() ->
+                jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ? FOR UPDATE", TALK, id).stream().findFirst());
     }
 
     public void updateStatus(long id, TalkStatus status) {
@@ -94,6 +97,6 @@ public class TalkDao {
     }
 
     private void lockSpeaker(long speakerId) {
-        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", speakerId);
+        rowLocks.forUpdate(() -> jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", speakerId));
     }
 }
